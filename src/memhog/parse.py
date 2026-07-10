@@ -98,17 +98,3 @@ def parse_free_percentage(output: str) -> str | None:
         if "free percentage" in line:
             return line.split(":", 1)[1].strip()
     return None
-
-
-def format_mb(mb: float) -> str:
-    """MB を人間可読(G/M)に整形する。
-
-    Args:
-        mb: MB 単位の値。
-
-    Returns:
-        1024 以上なら "12.3G"、未満なら "512M"。
-    """
-    if mb >= 1024:
-        return f"{mb / 1024:.1f}G"
-    return f"{round(mb)}M"

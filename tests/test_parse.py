@@ -3,7 +3,6 @@
 import pytest
 
 from memhog.parse import (
-    format_mb,
     parse_free_percentage,
     parse_mem_to_mb,
     parse_phys_mem,
@@ -81,18 +80,3 @@ class TestParseFreePercentage:
 
     def test_missing(self) -> None:
         assert parse_free_percentage("nothing") is None
-
-
-class TestFormatMb:
-    @pytest.mark.parametrize(
-        ("mb", "expected"),
-        [
-            (32768, "32.0G"),
-            (1536, "1.5G"),
-            (1024, "1.0G"),
-            (745, "745M"),
-            (0, "0M"),
-        ],
-    )
-    def test_format(self, mb: float, expected: str) -> None:
-        assert format_mb(mb) == expected

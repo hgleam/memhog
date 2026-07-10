@@ -1,13 +1,12 @@
 """memhog の typer エントリポイント。"""
 
-import os
 import signal
 import time
 
 import typer
 from rich.console import Console
 
-from . import __version__, render, report
+from . import __version__, collect, render, report
 from .models import Process
 
 app = typer.Typer(
@@ -41,7 +40,7 @@ def _kill_process(
 
     target = next((p for p in processes if p.pid == pid), None)
     label = target.command if target else "(一覧外の PID)"
-    if pid <= 1 or pid == os.getpid():
+    if pid <= 1 or pid == collect.current_pid():
         console.print("[red]その PID は停止できません(システム/自分自身)。[/red]")
         raise typer.Exit(code=1)
 
@@ -52,14 +51,13 @@ def _kill_process(
     ):
         console.print("中止しました。")
         return
-    try:
-        os.kill(pid, sig)
-    except ProcessLookupError:
+    result = collect.send_signal(pid, sig)
+    if result == "not_found":
         console.print(f"[yellow]PID {pid} は存在しません(既に終了?)。[/yellow]")
         return
-    except PermissionError:
+    if result == "denied":
         console.print(f"[red]PID {pid} を停止する権限がありません(sudo が必要かも)。[/red]")
-        raise typer.Exit(code=1) from None
+        raise typer.Exit(code=1)
     console.print(f"[green]PID {pid} に {sig.name} を送信しました。[/green]")
 
 

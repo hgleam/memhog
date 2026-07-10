@@ -9,3 +9,6 @@ build/
 .ruff_cache/
 .coverage
 .DS_Store
+
+# Claude Code セッション由来の生成物
+.claude/voice-name.txt

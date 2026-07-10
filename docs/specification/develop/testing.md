@@ -6,13 +6,15 @@
 
 `tests/` 配下、pytest。`collect`（外部コマンド I/O）をモックするため macOS 非依存で CI（Linux）でも動く。
 
-件数は pytest 収集数（parametrize 展開後）。合計 44。
+件数は pytest 収集数（parametrize 展開後）。合計 48。
 
 | ファイル | 件数 | 対象 |
 |---------|------|------|
 | `test_models.py` | 6 | `Process.hidden_gpu` の判定（境界値・GPU 常駐/非常駐） |
-| `test_parse.py` | 25 | `parse_mem_to_mb` / `parse_top_processes` / `parse_phys_mem` / `parse_free_percentage` / `format_mb` |
+| `test_parse.py` | 20 | `parse_mem_to_mb` / `parse_top_processes` / `parse_phys_mem` / `parse_free_percentage` |
 | `test_report.py` | 6 | `build_processes` / `build_system_memory`（collect をモック） |
+| `test_render.py` | 5 | `format_mb`（MB→G/M 整形） |
+| `test_collect.py` | 4 | `send_signal`（os.kill をモック・例外→結果コード翻訳）/ `current_pid` |
 | `test_spec_freshness.py` | 7 | 仕様書鮮度チェックの仕組みが揃っていることの構造テスト |
 
 実行:

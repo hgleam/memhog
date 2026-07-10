@@ -3,7 +3,10 @@
 副作用を持つのはこのモジュールに限定し、解析ロジック(parse.py)から分離する。
 """
 
+import os
+import signal
 import subprocess
+from typing import Literal
 
 
 def _run(args: list[str]) -> str:
@@ -75,3 +78,33 @@ def memory_pressure() -> str:
         標準出力全体。取得できなければ空文字。
     """
     return _run(["memory_pressure"])
+
+
+def current_pid() -> int:
+    """memhog 自身の PID を返す。
+
+    Returns:
+        自プロセスの PID。
+    """
+    return os.getpid()
+
+
+def send_signal(pid: int, sig: signal.Signals) -> Literal["ok", "not_found", "denied"]:
+    """PID にシグナルを送る(プロセス停止の副作用をこの I/O 層に閉じる)。
+
+    os.kill の例外を制御フロー用の結果コードに翻訳し、握り潰さず呼び出し側へ伝える。
+
+    Args:
+        pid: 対象プロセス ID。
+        sig: 送信するシグナル(SIGTERM / SIGKILL 等)。
+
+    Returns:
+        "ok": 送信成功 / "not_found": プロセスが存在しない / "denied": 権限不足。
+    """
+    try:
+        os.kill(pid, sig)
+    except ProcessLookupError:
+        return "not_found"
+    except PermissionError:
+        return "denied"
+    return "ok"
