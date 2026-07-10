@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# 素の git hook（husky は使わない）。有効化: git config core.hooksPath .githooks
+
+# main/master への直接コミットを禁止
+branch=$(git rev-parse --abbrev-ref HEAD)
+if [ "$branch" = "main" ] || [ "$branch" = "master" ]; then
+  echo "⚠  main/master への直接コミットは禁止です。ブランチを切ってください。"
+  exit 1
+fi
+
+# 仕様書の鮮度チェック
+bash scripts/check-spec-freshness.sh
