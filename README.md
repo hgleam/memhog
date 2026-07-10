@@ -11,6 +11,8 @@ Activity モニタが示す本当の値＝`top` の MEM 列（物理フットプ
 memhog はこの物理フットプリントでランク付けし、`ps` の RSS との乖離が大きいプロセスに
 **`⚠ GPU/Metal常駐(psに出ない)`** 印を付けて「小さく見えるのに実は巨大」を炙り出す。
 
+詳しい仕様は [`docs/specification/`](docs/specification/README.md)（[依頼者向け](docs/specification/client/README.md) / [開発者向け](docs/specification/develop/README.md)）を参照。
+
 ```
 == システムメモリ ==
   PhysMem: 63G used (7613M wired, 32G compressor), 217M unused.
@@ -44,11 +46,14 @@ memhog --kill --force  # SIGKILL で停止
 cd memhog
 python -m venv .venv          # .venv を先に作る（pyenv グローバル汚染を防ぐ）
 poetry install
+git config core.hooksPath .githooks   # pre-commit フック（仕様書鮮度チェック）を有効化
 poetry run pytest             # テスト
 poetry run ruff check .       # lint
 poetry run mypy src           # 型チェック
 poetry run memhog             # 実行
 ```
+
+> `core.hooksPath` はローカル git 設定でコミットされない。**クローンごとに上記 `git config core.hooksPath .githooks` を一度実行**すること（`src/memhog/` 等を変更したのに `docs/specification/` を更新していないコミットをブロックする）。
 
 ### グローバル実行（pipx）
 
