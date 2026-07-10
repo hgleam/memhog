@@ -58,6 +58,18 @@ pipx install /path/to/memhog              # 通常インストール
 memhog                                    # どこからでも
 ```
 
+## CI / auto-merge
+
+- PR / main への push で GitHub Actions（`test` ジョブ = ruff + mypy + pytest）が走る。main 保護 ruleset で `test` を必須チェックにしているため、緑にならないとマージできない。
+- 自動マージのトグル:
+  ```bash
+  scripts/automerge.sh status        # 現在の状態
+  scripts/automerge.sh on            # 有効化
+  scripts/automerge.sh off           # 無効化（手動マージのみ）
+  gh pr merge <N> --auto --squash    # ON 時: CI 緑で自動マージ予約
+  ```
+
 ## 対応環境
 
 macOS 専用（`top` / `ps` / `sysctl` / `memory_pressure` に依存）。
+テストは `top`/`ps` をモックするため CI（Linux ランナー）でも動く。
