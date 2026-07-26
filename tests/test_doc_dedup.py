@@ -56,6 +56,9 @@ def prose_lines(rel: str) -> set[str]:
             continue
         if re.fullmatch(r"[-*>|\s]*\[[^\]]+\]\([^)]+\)[.,、。\s]*", line):
             continue
+        # 出典・参考リンクの行は複数の文書から同じ資料を引くのが正当なので比較しない
+        if "http" in line:
+            continue
         out.add(line)
     return out
 
