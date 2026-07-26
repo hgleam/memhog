@@ -9,4 +9,17 @@ if [ "$branch" = "main" ] || [ "$branch" = "master" ]; then
 fi
 
 # 仕様書の鮮度チェック
-bash scripts/check-spec-freshness.sh
+bash scripts/check-spec-freshness.sh || exit 1
+
+# ドキュメント整合（構成ツリー・文書の数値・再掲）を手元で止める。
+# CI にも載っているが、push するまで気づかないと1往復増えるためここでも回す。
+# 標準ライブラリのみ・1秒未満（Poetry の環境に入っていなくても動く）。
+for t in tests/test_doc_tree.py tests/test_doc_facts.py tests/test_doc_dedup.py; do
+  [ -f "$t" ] || continue
+  if ! out=$(python3 "$t" 2>&1); then
+    echo "⚠  $t が失敗しました（ドキュメントの整合が崩れています）:"
+    printf '%s\n' "$out" | grep -E '^FAIL|^  ' | head -20
+    echo "   直してから再コミットしてください（詳細: python3 $t）"
+    exit 1
+  fi
+done

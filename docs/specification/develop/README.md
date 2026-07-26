@@ -16,19 +16,11 @@
 
 ## ディレクトリ構成
 
-```
-src/memhog/
-├── __init__.py    # __version__
-├── cli.py         # typer エントリポイント・--kill/--watch の制御
-├── collect.py     # 外部コマンド(top/ps/sysctl/memory_pressure)を叩く I/O 層
-├── parse.py       # top/memory_pressure のテキスト解析（純粋関数）
-├── models.py      # ドメインモデル（Process / SystemMemory・hidden_gpu 判定）
-├── report.py      # collect × parse を組み合わせ一覧・システム状況を構築
-└── render.py      # 表 / JSON 出力
-tests/             # test_models / test_parse / test_report
-scripts/           # automerge.sh / check-spec-freshness.sh
-.github/workflows/ # ci.yml
-```
+リポジトリ全体の構成図の正本は**ルート [README.md](../../../README.md)**、`docs/` 配下は
+[docs/README.md](../../README.md)。ここでは重複を持たない（同じ事実を2箇所に置くと
+静かにドリフトするため。`tests/test_doc_tree.py` が複製を検出する）。
+
+各モジュールの責務と処理の流れは [architecture.md](architecture.md) を参照。
 
 ## トピック
 
