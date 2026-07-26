@@ -16,6 +16,21 @@
 | `test_render.py` | 5 | `format_mb`（MB→G/M 整形） |
 | `test_collect.py` | 4 | `send_signal`（os.kill をモック・例外→結果コード翻訳）/ `current_pid` |
 | `test_spec_freshness.py` | 7 | 仕様書鮮度チェックの仕組みが揃っていることの構造テスト |
+| `test_doc_tree.py` | 10 | 構成ツリー ↔ 実ファイルの双方向照合（漏れ／幽霊）＋2箇所以外への複製検出 |
+| `test_doc_facts.py` | 5 | 文書の数値 ↔ コード実値（`--count` 既定・`HIDDEN_GPU_MIN_MB` ・`HIDDEN_GPU_RSS_RATIO` ・`_MAX_CMD`） |
+| `test_doc_dedup.py` | 2 | 文書間の再掲（本文で 40 文字以上の同一行が2文書にあれば FAIL） |
+
+### ドキュメント整合の3テスト（2026-07-27 追加）
+
+コードを直して**文書だけ古い**状態は、通常のテストが緑でも起こる。閾値を変えたのに
+`memory-detection.md` の定数表が古いと「なぜこの警告が出た/出ないか」の説明が実装と食い違う。
+**正本＝コード**として機械照合する。
+
+- 構成ツリーの正本は2箇所で担当範囲が重ならない（全体＝ルート `README.md` /
+  `docs/` 配下＝`docs/README.md`）。`develop/README.md` は 2026-07-27 にリンクへ変更した。
+- 標準ライブラリのみで動くので、CI では**依存 install より前**に `Doc integrity` として走る
+  （install が失敗しても文書のズレは検出できる）。`pytest` でも収集される。
+- 雛形は `~/claude-private/.claude/skills/init/templates/`。他プロジェクトへも同手順で入る。
 
 実行:
 
