@@ -86,29 +86,25 @@ def listed(tree: str, path: str) -> bool:
     素の部分文字列一致（`name in tree`）だと、消した行を別の行が肩代わりして
     素通りする。実例（agent-office）では `deploy.ts` の行をツリーから消しても、
     同じディレクトリの `auto-deploy.ts` が文字列として "deploy.ts" を含むため
-    検査が通ってしまった。判定はツリー全文に対する `in` なので、他のファイル名
-    だけでなく行末コメントに同じ語があっても同様に素通りする。
+    検査が通ってしまった。行末コメントに同じ語がある場合も同様に素通りする。
+    トークンに分解して**完全一致**で見る。
 
-    tokens() で行をパスらしいトークンへ分解し、トークンの末尾セグメントとの
-    完全一致で判定する（末尾セグメント一致にするのは、`.github/workflows/ci.yml`
-    や `design-notes/README.md` のようにネストせず1行にフルパスで書く記法が
-    実際に使われているため。単純な `==` だけだとこの正しい記法まで漏れ扱いに
-    してしまう）。
+    ただしトークンは `.github/workflows/ci.yml` や `design-notes/README.md` の
+    ように、ネストせず1行にフルパスで書く簡潔記法になることがある（同名の
+    README.md が続くのを避ける書き方等）。トークン全体の完全一致だけを見ると
+    この正当な表記まで不一致になるので、`/` でセグメントに分解してから
+    セグメント単位で完全一致させる（部分文字列一致は使わないので、上記の
+    肩代わりは起きない）。
     """
-    stripped = [t.rstrip("/") for t in tokens(tree)]
-
-    def has_segment(target: str) -> bool:
-        return any(t == target or t.endswith("/" + target) for t in stripped)
-
+    segments = {seg for t in tokens(tree)
+                for seg in t.rstrip("/").split("/") if seg}
     name = os.path.basename(path)
     if name != "README.md":
-        return has_segment(name)
+        return name in segments
     parent = os.path.basename(os.path.dirname(path))
     if parent in ("", "docs"):
-        return has_segment("README.md")
-    return has_segment(f"{parent}/README.md") or (
-        has_segment(parent) and has_segment("README.md")
-    )
+        return "README.md" in segments
+    return parent in segments and "README.md" in segments
 
 
 repo_tree = tree_text(REPO_TREE_DOC)
