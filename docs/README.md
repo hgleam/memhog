@@ -2,26 +2,12 @@
 
 ## ディレクトリ構成
 
-`docs/` 配下の構成図の正本はここ（リポジトリ全体の構成図は [../README.md](../README.md)。
-あちらは `docs/` を1行に畳んでここへリンクする＝同じ事実を二重に持たない）。
-
 ```
 docs/
-├── README.md                       # この目次（docs 配下の構成図）
-├── design-notes/README.md          # 未確定の論点
+├── README.md
+├── design-notes/
 └── specification/
-    ├── README.md                   # 仕様書の入口（client / develop の使い分け）
-    ├── client/README.md            # 使う人向け（機能・前提・受け入れ基準）
-    └── develop/
-        ├── README.md               # 開発者向けの入口
-        ├── architecture.md         # 収集→パース→集計→描画の流れ
-        ├── memory-detection.md     # GPU 常駐の判定としきい値
-        ├── cli.md                  # CLI オプションの仕様
-        └── testing.md              # テスト構成・CI
 ```
-
-ファイルを足す/消すときはこのツリーも同じコミットで直す（`tests/test_doc_tree.py` が
-双方向で検証する）。
 
 ## 領域の使い分け
 

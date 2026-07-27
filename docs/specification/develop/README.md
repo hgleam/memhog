@@ -1,7 +1,5 @@
 # memhog — 開発者向け仕様書
 
-最終更新: 2026-07-10
-
 ## 技術スタック
 
 - 言語: Python >= 3.11
@@ -16,11 +14,14 @@
 
 ## ディレクトリ構成
 
-リポジトリ全体の構成図の正本は**ルート [README.md](../../../README.md)**、`docs/` 配下は
-[docs/README.md](../../README.md)。ここでは重複を持たない（同じ事実を2箇所に置くと
-静かにドリフトするため。`tests/test_doc_tree.py` が複製を検出する）。
-
-各モジュールの責務と処理の流れは [architecture.md](architecture.md) を参照。
+```
+develop/
+├── README.md
+├── architecture.md                 # 収集→パース→集計→描画の流れ
+├── cli.md                          # CLI オプションの仕様
+├── memory-detection.md             # GPU 常駐の判定としきい値
+└── testing.md                      # テスト構成・CI
+```
 
 ## トピック
 

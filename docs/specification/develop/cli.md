@@ -1,7 +1,5 @@
 # CLI オプション
 
-最終更新: 2026-07-10
-
 エントリポイント: `memhog.cli:app`（typer、単一コマンド）。定義は `src/memhog/cli.py`。
 
 ## オプション一覧
