@@ -9,9 +9,10 @@
   2. 同じ経緯が devlog と仕様書の2箇所に散る（片方だけ直ると矛盾する）
   3. 古い決定が消えないまま積もり、仕様書が更新履歴のログになる
 
-検査（`docs/specification/**/*.md` が対象。devlog と design-notes は過程を書く場所なので対象外）:
+検査（`docs/specification/**/*.md` が対象。devlog と design-notes は過程を書く場所なので対象外。
+コードブロックとインラインコードは対象外＝データ例やファイル名の日付は履歴と見なさない）:
 
-  1. 日付（YYYY-MM-DD）が本文にある     -> FAIL（`最終更新:` 行だけは許可）
+  1. 日付（YYYY-MM-DD）がある            -> FAIL（更新日も書かない。git log が正本）
   2. 履歴語（旧実装 / 従来 / 以前は …）  -> FAIL
 
 「なぜこの設計なのか」の**理由**は仕様書に残してよい（現在形で書く）。禁止するのは
@@ -31,9 +32,8 @@ SPEC_DIR = "docs/specification/"
 
 DATE = re.compile(r"20\d\d-[01]\d-[0-3]\d")
 # 履歴を表す語。仕様書の現在形の記述では使わない。
-HISTORY_WORDS = ("旧実装", "従来は", "以前は", "当初は", "旧仕様", "変更前は", "だった経緯")
-# 日付を含んでよい行（更新日のメタ情報）。
-DATE_OK = ("最終更新",)
+# 「以前は」は「それ以前は」（時刻表示の説明など）と紛れるので、直前の指示語を除外する。
+HISTORY_WORDS = ("旧実装", "従来は", r"(?<![それこ])以前は", "当初は", "旧仕様", "変更前は", "だった経緯")
 # 例外は理由付きで登録する（`docs/...md`: 理由）。
 ALLOW: dict[str, str] = {}
 
@@ -49,17 +49,29 @@ def read(rel: str) -> str:
         return fh.read()
 
 
+# コードブロックとインラインコードは検査対象外。データ例やファイル名の日付
+# （`<time datetime="2025-12-10...">`・`docs/research/2026-04-25_.../`）まで履歴と判定すると、
+# 回避のための ALLOW 登録が増えて検査が形骸化する。
+INLINE = re.compile(r"`[^`]*`")
+
 dates, words = [], []
 docs = tracked()
 
 for doc in docs:
     if doc in ALLOW:
         continue
+    incode = False
     for num, line in enumerate(read(doc).splitlines(), 1):
-        if DATE.search(line) and not any(k in line for k in DATE_OK):
+        if line.lstrip().startswith("```"):
+            incode = not incode
+            continue
+        if incode:
+            continue
+        bare = INLINE.sub("", line)
+        if DATE.search(bare):
             dates.append(f"{doc}:{num}")
         for word in HISTORY_WORDS:
-            if word in line:
+            if re.search(word, bare):
                 words.append(f"{doc}:{num} ({word})")
 
 checks = [
