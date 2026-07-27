@@ -81,14 +81,34 @@ def in_repo(token: str) -> bool:
 
 
 def listed(tree: str, path: str) -> bool:
-    """ツリーに載っているか（README.md は同名が複数あるので親名も要求する）。"""
+    """ツリーに載っているか（README.md は同名が複数あるので親名も要求する）。
+
+    素の部分文字列一致（`name in tree`）だと、消した行を別の行が肩代わりして
+    素通りする。実例（agent-office）では `deploy.ts` の行をツリーから消しても、
+    同じディレクトリの `auto-deploy.ts` が文字列として "deploy.ts" を含むため
+    検査が通ってしまった。判定はツリー全文に対する `in` なので、他のファイル名
+    だけでなく行末コメントに同じ語があっても同様に素通りする。
+
+    tokens() で行をパスらしいトークンへ分解し、トークンの末尾セグメントとの
+    完全一致で判定する（末尾セグメント一致にするのは、`.github/workflows/ci.yml`
+    や `design-notes/README.md` のようにネストせず1行にフルパスで書く記法が
+    実際に使われているため。単純な `==` だけだとこの正しい記法まで漏れ扱いに
+    してしまう）。
+    """
+    stripped = [t.rstrip("/") for t in tokens(tree)]
+
+    def has_segment(target: str) -> bool:
+        return any(t == target or t.endswith("/" + target) for t in stripped)
+
     name = os.path.basename(path)
     if name != "README.md":
-        return name in tree
+        return has_segment(name)
     parent = os.path.basename(os.path.dirname(path))
     if parent in ("", "docs"):
-        return "README.md" in tree
-    return parent in tree and "README.md" in tree
+        return has_segment("README.md")
+    return has_segment(f"{parent}/README.md") or (
+        has_segment(parent) and has_segment("README.md")
+    )
 
 
 repo_tree = tree_text(REPO_TREE_DOC)
