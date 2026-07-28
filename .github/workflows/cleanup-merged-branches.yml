@@ -1,0 +1,34 @@
+name: cleanup-merged-branches
+# GITHUB_TOKEN 起点のマージは push / pull_request closed を発火しないため、
+# --delete-branch も delete_branch_on_merge も効かない。schedule はその制約を受けない。
+on:
+  schedule:
+    - cron: "0 15 * * *"   # 毎日 00:00 JST
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          default=$(gh api "/repos/$REPO" --jq .default_branch)
+          gh api "/repos/$REPO/branches?protected=false&per_page=100" --jq '.[].name' |
+          while read -r br; do
+            [ "$br" = "$default" ] && continue
+            # open PR が残っているブランチは消さない
+            open=$(gh api "/repos/$REPO/pulls?state=open&head=${REPO%%/*}:$br" --jq 'length')
+            [ "$open" -gt 0 ] && continue
+            merged=$(gh api "/repos/$REPO/pulls?state=closed&head=${REPO%%/*}:$br&per_page=1" \
+                       --jq '[.[] | select(.merged_at != null)] | length')
+            if [ "$merged" -gt 0 ]; then
+              gh api --method DELETE "/repos/$REPO/git/refs/heads/$br" && echo "deleted: $br"
+            fi
+          done
