@@ -16,12 +16,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      # ドキュメント整合（構成ツリー・文書の数値・再掲）。pytest でも収集されるが、
+      # ドキュメント整合（構成ツリー・文書の数値・再掲・仕様書への履歴混入）。pytest でも収集されるが、
       # 標準ライブラリのみで動くので **依存 install より前**に置く。install が失敗しても
       # 文書のズレは検出でき、失敗時に「どの記載がズレたか」を単体で読める。
       - name: Doc integrity
         run: |
-          for t in tests/test_doc_tree.py tests/test_doc_facts.py tests/test_doc_dedup.py; do
+          for t in tests/test_doc_tree.py tests/test_doc_facts.py tests/test_doc_dedup.py tests/test_spec_no_history.py; do
             echo "--- $t"
             python3 "$t" || exit 1
           done

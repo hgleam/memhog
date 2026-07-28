@@ -76,36 +76,17 @@ memhog                                    # どこからでも
 
 ## ディレクトリ構成
 
-リポジトリ全体の構成図の正本はここ（`docs/` 配下の構成図は [docs/README.md](docs/README.md)）。
-
 ```
 .
+├── README.md
 ├── pyproject.toml                  # Poetry（依存・entry point memhog）
-├── src/memhog/
-│   ├── cli.py                      # typer の CLI（-n / -g / --json / --watch / --kill）
-│   ├── collect.py                  # top / ps / sysctl の実行と収集
-│   ├── parse.py                    # 出力のパース（macOS 依存の書式）
-│   ├── models.py                   # データモデル＋GPU 常駐の判定しきい値
-│   ├── report.py                   # 集計・並べ替え・JSON 化
-│   └── render.py                   # 端末描画（rich）
-├── tests/
-│   ├── test_collect.py             # 収集（top/ps をモック）
-│   ├── test_parse.py               # パース
-│   ├── test_models.py              # GPU 常駐判定
-│   ├── test_report.py              # 集計・JSON
-│   ├── test_render.py              # 描画
-│   ├── test_spec_freshness.py      # 仕様書ゲートの構造テスト
-│   ├── test_doc_tree.py            # 構成ツリーと実ファイルの整合（双方向・2ツリー）
-│   ├── test_doc_facts.py           # 文書の数値がコード実値と一致するか
-│   └── test_doc_dedup.py           # 文書間の再掲（同一文の重複）検出
+├── .claude/
+├── .githooks/
+├── .github/
+├── docs/                           # 仕様書 / 設計メモ（構成図は docs/README.md）
 ├── scripts/
-│   ├── check-spec-freshness.sh     # 仕様書の鮮度チェック（pre-commit から呼ぶ）
-│   └── automerge.sh                # auto-merge の ON/OFF トグル
-├── .github/workflows/ci.yml        # CI（main の必須チェック）
-├── .githooks/pre-commit            # 仕様書の鮮度＋ドキュメント整合の検査
-├── .claude/rules/
-│   └── specification-update.md     # 仕様書更新の義務（このリポジトリ限定ルール）
-└── docs/                           # 仕様書 / 設計メモ（構成図は docs/README.md）
+├── src/
+└── tests/
 ```
 
 ## 対応環境
