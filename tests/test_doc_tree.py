@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """ディレクトリ構成ツリーが実ファイルと合っているか検証する（標準ライブラリのみ）。
 
 **README を持つディレクトリは、それぞれが自分の直下を描く**。深い階層まで書き下ろすのは
@@ -6,7 +5,7 @@
 
   - ルート `README.md` -> リポジトリ直下（`docs/` は1行に畳む）
   - `docs/README.md` -> `docs/` 直下（`specification/` は1行に畳む）
-  - `docs/specification/README.md` -> `specification/` 直下（`client/` `develop/` を畳む）
+  - `docs/specification/README.md` -> `specification/` 直下（`client/` `develop/`）
   - `client/` `develop/` の各 `README.md` -> それぞれの直下
 
 こうすると、同じファイル名がツリーに現れるのは1箇所だけになり（＝二重化しない）、
@@ -21,9 +20,9 @@
   2. ツリー -> 実在: ツリーが挙げるパスがその配下に実在するか（＝消したのに行が残った）
   3. 深さ: 直下より深いものを書いていないか（＝下位の担当を奪って二重化した）
 
-深い階層のファイルは、そこに README があればその README が、無ければ仕様書の該当トピックが
-説明する（テスト・スクリプトなら `develop/testing.md` 等）。ツリーに書き写すと同じ説明が
-2箇所へ散る。
+深い階層のファイルは、そこに README があればその README が、無ければ仕様書の
+該当トピックが説明する（テスト・スクリプトなら `develop/testing.md` 等）。ツリーに
+書き写すと同じ説明が2箇所へ散る。
 
 コピー後に直すのは **EXEMPT** だけ（ツリーに載せない追跡ファイルがあれば足す）。
 リポジトリ固有の追加検査は `checks` の末尾に足す。
@@ -42,12 +41,12 @@ EXEMPT = {".gitignore", "poetry.lock", "deno.lock", "package-lock.json"}
 
 def tracked() -> list[str]:
     out = subprocess.run(["git", "-C", REPO, "ls-files"],
-                         capture_output=True, text=True).stdout
+                         capture_output=True, text=True, check=False).stdout
     return [p for p in out.splitlines() if p]
 
 
 files = tracked()
-# ツリーを持つべき文書＝追跡されている README.md すべて（README を足したらツリーも要る）。
+# ツリーを持つ文書＝追跡されている README.md すべて（README を足したらツリーも要る）。
 TREE_DOCS = sorted(p for p in files if os.path.basename(p) == "README.md")
 
 
@@ -112,7 +111,7 @@ def direct_entries(scope: str) -> tuple[set[str], set[str]]:
 
 
 def in_scope(scope: str, token: str) -> bool:
-    """トークンが scope 配下に実在するか（末尾一致。絶対パス化すると全部幽霊になる）。"""
+    """トークンが scope 配下に実在するか（末尾一致。絶対パスだと全部幽霊になる）。"""
     prefix = scope + "/" if scope else ""
     cands = [p for p in files if p.startswith(prefix)]
     bare = token.rstrip("/").strip("/")
@@ -142,7 +141,7 @@ def preamble(rel: str) -> str:
 
     ここに「ここは client/ 直下を描く」のような**書き手向けのメタ説明**を貼ると、
     読者には何の情報も無い前置きが全 README に並ぶ（2026-07-27 の指摘）。ツリーの
-    維持規約は `.claude/rules/specification-update.md` の担当で、文書に書くものではない。
+    維持規約はルール側の担当で、文書に書くものではない。
     """
     body = read(rel)
     idx = body.find("## ディレクトリ構成")
@@ -204,9 +203,9 @@ def failures() -> list[str]:
 def test_doc_tree() -> None:
     """pytest から収集されたときも同じ検査を行う。
 
-    pytest は tests/test_*.py を import するため、トップレベルで `raise SystemExit` すると
-    INTERNALERROR になり**既存の pytest 実行ごと壊す**（実測）。検査は import 時に済んでいるので、
-    ここでは結果だけを assert し、レポート出力は __main__ ガードの中に置く。
+    pytest は tests/test_*.py を import するため、トップレベルで `raise SystemExit`
+    すると INTERNALERROR になり**pytest 実行ごと壊す**（実測）。検査は import 時に
+    済んでいるので、ここでは結果だけを assert し、出力は __main__ ガードに置く。
     """
     assert not failures(), "\n".join(failures())
 

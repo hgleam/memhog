@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """【雛形】文書間の「散文の再掲」を検出する（同じ説明を2箇所に書かせない）。
 
 コピー後に直すのは MIN_LEN / SKIP_DOCS / ALLOW の3つだけ。
