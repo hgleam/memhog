@@ -9,7 +9,8 @@
 |-----------|------|--------|
 | `collect.py` | `top` / `ps` / `sysctl` / `memory_pressure` を叩く薄い I/O 層。プロセス停止（`send_signal` = `os.kill`）・自 PID 取得（`current_pid`）もここに集約 | あり（subprocess / os.kill） |
 | `parse.py` | top・memory_pressure の出力を解析する純粋関数群 | なし |
-| `models.py` | ドメインモデル（`Process` / `SystemMemory`）と判定ロジック | なし |
+| `models.py` | ドメインモデル（`Process` / `PsEntry` / `ProcessGroup` / `SystemMemory`）と判定ロジック | なし |
+| `group.py` | プロセスをアプリ単位へ集約する純粋関数群（`app_label` / `group_label` / `group_processes`） | なし |
 | `report.py` | `collect` × `parse` を組み合わせて一覧・システム状況を構築 | あり（collect 経由） |
 | `render.py` | `Process` / `SystemMemory` を表 / JSON に整形（`format_mb` 等の整形関数もここ） | なし（出力のみ） |
 | `cli.py` | typer エントリ・オプション制御・`--kill` / `--watch`（プロンプト等 UI のみ。プロセス停止は collect に委譲） | あり（UI 入出力のみ） |
@@ -32,6 +33,24 @@ cli.main
   └─ render.render_table(...) / render.build_json(...)
 ```
 
+`--group` 指定時（アプリ単位の集約）:
+
+```
+cli.main
+  └─ report.build_groups(count, grep)
+       ├─ collect.ps_snapshot()                     # pid/ppid/rss/command を 1 回で一括取得
+       ├─ parse.parse_ps_snapshot(raw)              # pid -> PsEntry
+       ├─ collect.top_sample(プロセス数 + 余裕)      # 走査幅は ps の実数から決める
+       └─ group.group_processes(processes, snapshot)
+            └─ group.group_label(pid, snapshot)     # 親をたどりアプリ名を決める
+     → list[ProcessGroup], top の生出力
+  └─ render.render_group_table(...) / render.build_group_json(...)
+```
+
+`--app <label>` 指定時（アプリの内訳）: `report.build_app_processes` が同じ `group_label` で
+所属を判定し、プロセス単位の表（`render.render_table`）に落とす。
+```
+
 ## 設計判断
 
 - **`top` の生出力を使い回す**: `build_processes` が返す top 生出力から PhysMem 行も取り出し、
@@ -42,5 +61,21 @@ cli.main
   `ProcessLookupError` / `PermissionError` を `"not_found"` / `"denied"` の結果コードに翻訳して返す。
   cli.py は結果コードに応じてメッセージを出すだけ（副作用を持たない）。整形（`format_mb`）は解析(parse)ではなく
   render に置く。この分離により kill/整形とも純粋 or モック可能で単体テストできる。
+- **集約は親子関係で行う（コマンド名の一致ではない）**: Chromium ヘルパーの実行ファイル名は
+  起動元アプリと無関係（例: ixBrowser 配下の実体は `Chromium.app`）なので、名前で束ねると
+  別アプリとして散る。`group_label` は最上位の祖先まで遡り、シェル・端末・多重化ツール
+  （`_TRANSPARENT`: zsh / tmux 等）でない最初のものをアプリとみなす。この「器は素通りする」
+  規則が無いと、tmux 配下の CLI が全部 tmux に吸われる（実測でそうなった）。
+- **内訳（`--app`）も ancestry で絞る**: `-g` はコマンド文字列の部分一致なので、実行ファイル名に
+  親アプリ名を含まない子プロセス（`node .../mcp-server` 等）を取りこぼす。合計と内訳で判定規則が
+  食い違うと「合計 15.9G と出たのに内訳を開くと 1.6G しか出ない」が起きるため、両者とも
+  `group.group_label` を使う。
+- **`ProcessGroup` は合計・件数・最大単体を持たない**: すべて `members` から導出する
+  （導出可能な冗長フィールドを持たない = 合計だけ更新して件数が古い、が起こらない）。
+- **`--group` は ps を 1 回にまとめる**: 数百プロセスが対象なので、PID ごとに `ps` を叩くと
+  呼び出しがプロセス数の 2 倍に膨らむ。`collect.ps_snapshot()` の一括取得に置き換える
+  （プロセス単位の既存経路は従来どおり PID ごとに引く）。
 - **フィルタ時は多めにサンプリング**: `-g` 指定時は取り漏らしを防ぐため top を `count * 4`（最低 40 件）
-  取得してから絞り込む。
+  取得してから絞り込む。`--group` は分散の可視化が目的のため、`ps` の実プロセス数（+ `GROUP_SAMPLE_MARGIN`）を
+  走査幅にする。固定上限で切ると、あふれた分が黙って合計から落ちて目的が崩れるため
+  （実測 1065 プロセスのマシンで、上限 500 では合計の半分が消えた）。下限は `GROUP_SAMPLE_MIN = 100`。

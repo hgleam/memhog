@@ -55,3 +55,58 @@ class SystemMemory:
     phys: str | None
     swap: str | None
     free_percentage: str | None
+
+
+@dataclass(frozen=True)
+class PsEntry:
+    """ps の 1 行分(全プロセス走査用)。
+
+    Attributes:
+        pid: プロセス ID。
+        ppid: 親プロセス ID。
+        rss_mb: ps の RSS(MB)。
+        command: フルコマンド文字列。
+    """
+
+    pid: int
+    ppid: int
+    rss_mb: int
+    command: str
+
+
+@dataclass(frozen=True)
+class ProcessGroup:
+    """同じアプリ由来のプロセスをまとめたもの。
+
+    Chromium 系のようにプロセスが 100 個以上に分散するアプリは、1 プロセスずつ見ると
+    上位ランキングから消えてしまう。合算して初めて「実は一番食っている」が見える。
+
+    合計・件数・最大単体は members から導出する(冗長な列を持たない)。
+
+    Attributes:
+        label: アプリ名(app_label で導出した表示名)。
+        members: 所属プロセス(メモリ降順)。
+    """
+
+    label: str
+    members: tuple[Process, ...]
+
+    @property
+    def total_mb(self) -> int:
+        """グループ全体の物理フットプリント合計(MB)。"""
+        return sum(p.mem_mb for p in self.members)
+
+    @property
+    def count(self) -> int:
+        """所属プロセス数。"""
+        return len(self.members)
+
+    @property
+    def largest(self) -> Process:
+        """最も食っている 1 プロセス。"""
+        return self.members[0]
+
+    @property
+    def hidden_gpu(self) -> bool:
+        """GPU/Metal 常駐と判定されたプロセスを 1 つでも含むか。"""
+        return any(p.hidden_gpu for p in self.members)

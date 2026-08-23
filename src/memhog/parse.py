@@ -5,6 +5,8 @@
 
 import re
 
+from .models import PsEntry
+
 _MEM_RE = re.compile(r"^([0-9]+(?:\.[0-9]+)?)([GMKB]?)$")
 _UNIT_TO_MB: dict[str, float] = {
     "G": 1024.0,
@@ -98,3 +100,36 @@ def parse_free_percentage(output: str) -> str | None:
         if "free percentage" in line:
             return line.split(":", 1)[1].strip()
     return None
+
+
+def parse_ps_snapshot(output: str) -> dict[int, PsEntry]:
+    """`ps -Ao pid=,ppid=,rss=,command=` の出力を PID 引きの辞書にする。
+
+    command には空白が含まれるため、先頭 3 列だけを分割してから残りをコマンドとみなす。
+
+    Args:
+        output: ps コマンドの標準出力全体。
+
+    Returns:
+        pid -> PsEntry の辞書。解釈できない行は捨てる。command が空の行(権限不足・
+        ゾンビ)は command="" として残す(プロセス数の母数から落とさないため)。
+    """
+    entries: dict[int, PsEntry] = {}
+    for line in output.splitlines():
+        parts = line.split(maxsplit=3)
+        # 権限不足・ゾンビでは command が空になる。捨てるとプロセス数を過小に数え、
+        # top の走査幅(= len(snapshot) + 余裕)が実プロセス数に届かなくなる。
+        if len(parts) == 3:
+            parts.append("")
+        if len(parts) < 4:
+            continue
+        pid, ppid, rss_kb, command = parts
+        if not (pid.isdigit() and ppid.isdigit() and rss_kb.isdigit()):
+            continue
+        entries[int(pid)] = PsEntry(
+            pid=int(pid),
+            ppid=int(ppid),
+            rss_mb=int(rss_kb) // 1024,
+            command=command.strip(),
+        )
+    return entries

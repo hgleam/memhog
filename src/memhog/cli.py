@@ -68,6 +68,16 @@ def main(
         None, "-g", "--grep", help="フルコマンドに部分一致するものだけ表示(大小無視)。"
     ),
     json_out: bool = typer.Option(False, "--json", help="機械可読な JSON で出力する。"),
+    group_by_app: bool = typer.Option(
+        False,
+        "--group",
+        help="プロセス単位でなくアプリ単位に合算して表示する(分散して埋もれるものを炙り出す)。",
+    ),
+    app: str | None = typer.Option(
+        None,
+        "--app",
+        help="--group の APP 名を指定し、そのアプリに属するプロセスだけを一覧する(内訳)。",
+    ),
     watch: float | None = typer.Option(
         None, "--watch", help="指定秒間隔で画面を更新し続ける(top のように監視)。"
     ),
@@ -86,11 +96,43 @@ def main(
     """
     console = Console()
 
+    if group_by_app and app is not None:
+        console.print(
+            "[red]--group と --app は併用できません(合計か内訳かを選んでください)。[/red]"
+        )
+        raise typer.Exit(code=1)
+
+    if group_by_app and kill:
+        console.print(
+            "[red]--group は --kill と併用できません(停止対象は PID で選ぶ必要があるため)。[/red]"
+        )
+        raise typer.Exit(code=1)
+
     if watch is not None:
         if json_out or kill:
             console.print("[red]--watch は --json / --kill と併用できません。[/red]")
             raise typer.Exit(code=1)
-        _run_watch(console, count, grep, watch)
+        _run_watch(console, count, grep, watch, group_by_app, app)
+        return
+
+    if app is not None:
+        processes, top_raw = report.build_app_processes(app, count)
+        system = report.build_system_memory(top_raw)
+        if json_out:
+            typer.echo(render.build_json(processes, system))
+            return
+        render.render_table(console, processes, system)
+        if kill:
+            _kill_process(processes, console, force, assume_yes)
+        return
+
+    if group_by_app:
+        groups, top_raw = report.build_groups(count, grep)
+        system = report.build_system_memory(top_raw)
+        if json_out:
+            typer.echo(render.build_group_json(groups, system))
+            return
+        render.render_group_table(console, groups, system, grep)
         return
 
     processes, top_raw = report.build_processes(count, grep)
@@ -105,7 +147,14 @@ def main(
         _kill_process(processes, console, force, assume_yes)
 
 
-def _run_watch(console: Console, count: int, grep: str | None, interval: float) -> None:
+def _run_watch(
+    console: Console,
+    count: int,
+    grep: str | None,
+    interval: float,
+    group_by_app: bool = False,
+    app: str | None = None,
+) -> None:
     """--watch: 一定間隔で画面を再描画し続ける。
 
     Args:
@@ -113,10 +162,23 @@ def _run_watch(console: Console, count: int, grep: str | None, interval: float) 
         count: 表示件数。
         grep: フィルタ文字列。
         interval: 更新間隔(秒)。
+        group_by_app: True ならアプリ単位に合算して描画する。
+        app: 指定時はそのアプリに属するプロセスだけを描画する。
     """
     try:
         while True:
-            processes, top_raw = report.build_processes(count, grep)
+            if group_by_app:
+                groups, top_raw = report.build_groups(count, grep)
+                system = report.build_system_memory(top_raw)
+                console.clear()
+                render.render_group_table(console, groups, system, grep)
+                console.print(f"[dim]{interval:g}秒ごとに更新 / Ctrl-C で終了[/dim]")
+                time.sleep(interval)
+                continue
+            if app is not None:
+                processes, top_raw = report.build_app_processes(app, count)
+            else:
+                processes, top_raw = report.build_processes(count, grep)
             system = report.build_system_memory(top_raw)
             console.clear()
             render.render_table(console, processes, system)

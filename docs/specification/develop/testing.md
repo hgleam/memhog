@@ -4,18 +4,19 @@
 
 `tests/` 配下、pytest。`collect`（外部コマンド I/O）をモックするため macOS 非依存で CI（Linux）でも動く。
 
-件数は pytest 収集数（parametrize 展開後）。合計 48。
+件数は pytest 収集数（parametrize 展開後）。合計 78（ドキュメント整合の 3 ファイルを除く）。
 
 | ファイル | 件数 | 対象 |
 |---------|------|------|
 | `test_models.py` | 6 | `Process.hidden_gpu` の判定（境界値・GPU 常駐/非常駐） |
-| `test_parse.py` | 20 | `parse_mem_to_mb` / `parse_top_processes` / `parse_phys_mem` / `parse_free_percentage` |
-| `test_report.py` | 6 | `build_processes` / `build_system_memory`（collect をモック） |
+| `test_parse.py` | 23 | `parse_mem_to_mb` / `parse_top_processes` / `parse_phys_mem` / `parse_free_percentage` / `parse_ps_snapshot` |
+| `test_report.py` | 16 | `build_processes` / `build_groups` / `build_app_processes` / 走査幅 / `build_system_memory`（collect をモック） |
+| `test_group.py` | 17 | `app_label` / `group_label`（親子・器の素通り・循環）/ `group_processes`（合算・順位） |
 | `test_render.py` | 5 | `format_mb`（MB→G/M 整形） |
 | `test_collect.py` | 4 | `send_signal`（os.kill をモック・例外→結果コード翻訳）/ `current_pid` |
 | `test_spec_freshness.py` | 7 | 仕様書鮮度チェックの仕組みが揃っていることの構造テスト |
 | `test_doc_tree.py` | 10 | 構成ツリー ↔ 実ファイルの双方向照合（漏れ／幽霊）＋2箇所以外への複製検出 |
-| `test_doc_facts.py` | 5 | 文書の数値 ↔ コード実値（`--count` 既定・`HIDDEN_GPU_MIN_MB` ・`HIDDEN_GPU_RSS_RATIO` ・`_MAX_CMD`） |
+| `test_doc_facts.py` | 6 | 文書の数値 ↔ コード実値（`--count` 既定・`HIDDEN_GPU_MIN_MB` ・`HIDDEN_GPU_RSS_RATIO` ・`GROUP_SAMPLE_MIN` ・`_MAX_CMD`） |
 | `test_doc_dedup.py` | 2 | 文書間の再掲（本文で 40 文字以上の同一行が2文書にあれば FAIL） |
 
 ### ドキュメント整合のテスト
