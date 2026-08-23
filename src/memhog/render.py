@@ -1,8 +1,10 @@
 """プロセス一覧・システム状況の出力(リッチな表 / JSON)。"""
 
 import json
+import shlex
 
 from rich.console import Console
+from rich.markup import escape
 from rich.table import Table
 from rich.text import Text
 
@@ -15,7 +17,12 @@ _ALERT_MB = 8000
 
 
 def _shorten(command: str) -> str:
-    """長いコマンドを末尾省略する。"""
+    """長いコマンドを末尾省略する。
+
+    Note:
+        省略しても中身は他プロセス由来の文字列のままなので、rich の console.print へ
+        渡す際は必ず `escape()` を通すこと(マークアップとして解釈させない)。
+    """
     return command if len(command) <= _MAX_CMD else command[: _MAX_CMD - 3] + "..."
 
 
@@ -43,11 +50,11 @@ def _render_system(console: Console, system: SystemMemory) -> None:
     console.print()
     console.print("[bold]== システムメモリ ==[/bold]")
     if system.phys:
-        console.print(f"  PhysMem: {system.phys}")
+        console.print(f"  PhysMem: {escape(system.phys)}")
     if system.swap:
-        console.print(f"  Swap: {system.swap}")
+        console.print(f"  Swap: {escape(system.swap)}")
     if system.free_percentage:
-        console.print(f"  空き: {system.free_percentage}")
+        console.print(f"  空き: {escape(system.free_percentage)}")
 
 
 def _system_payload(system: SystemMemory) -> dict[str, str | None]:
@@ -112,7 +119,7 @@ def render_table(
         top = processes[0]
         console.print("[bold]== 最大の消費元 ==[/bold]")
         console.print(f"  [green]PID {top.pid} / {format_mb(top.mem_mb)}[/green]")
-        console.print(f"  [dim]{top.command}[/dim]")
+        console.print(f"  [dim]{escape(_shorten(top.command))}[/dim]")
         console.print(
             f"  停止するなら:  [bold]memhog --kill[/bold]  または  [bold]kill {top.pid}[/bold]"
         )
@@ -165,7 +172,7 @@ def render_group_table(
 
     title = "アプリ別 実メモリ合計 (ヘルパープロセスを親子関係で合算)"
     if grep:
-        title += f" ※ -g '{grep}' 一致プロセスのみの部分合計"
+        title += f" ※ -g {escape(shlex.quote(grep))} 一致プロセスのみの部分合計"
     table = Table(
         title=title,
         title_style="bold",
@@ -200,13 +207,16 @@ def render_group_table(
         top = groups[0]
         console.print("[bold]== 最大の消費元 ==[/bold]")
         console.print(
-            f"  [green]{top.label} / {format_mb(top.total_mb)} / {top.count}プロセス[/green]"
+            f"  [green]{escape(top.label)} / {format_mb(top.total_mb)}"
+            f" / {top.count}プロセス[/green]"
         )
         console.print(
-            f"  [dim]最大単体: PID {top.largest.pid} {_shorten(top.largest.command)}[/dim]"
+            f"  [dim]最大単体: PID {top.largest.pid} "
+            f"{escape(_shorten(top.largest.command))}[/dim]"
         )
         console.print(
-            f"  内訳を見るなら:  [bold]memhog --app '{top.label}'[/bold]"
+            "  内訳を見るなら:  "
+            f"[bold]memhog --app {escape(shlex.quote(top.label))}[/bold]"
         )
     console.print()
 

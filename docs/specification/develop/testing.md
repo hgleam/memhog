@@ -4,7 +4,7 @@
 
 `tests/` 配下、pytest。`collect`（外部コマンド I/O）をモックするため macOS 非依存で CI（Linux）でも動く。
 
-件数は pytest 収集数（parametrize 展開後）。合計 78（ドキュメント整合の 3 ファイルを除く）。
+件数は pytest 収集数（parametrize 展開後）。合計 81（ドキュメント整合の 3 ファイルを除く）。
 
 | ファイル | 件数 | 対象 |
 |---------|------|------|
@@ -12,7 +12,7 @@
 | `test_parse.py` | 23 | `parse_mem_to_mb` / `parse_top_processes` / `parse_phys_mem` / `parse_free_percentage` / `parse_ps_snapshot` |
 | `test_report.py` | 16 | `build_processes` / `build_groups` / `build_app_processes` / 走査幅 / `build_system_memory`（collect をモック） |
 | `test_group.py` | 17 | `app_label` / `group_label`（親子・器の素通り・循環）/ `group_processes`（合算・順位） |
-| `test_render.py` | 5 | `format_mb`（MB→G/M 整形） |
+| `test_render.py` | 8 | `format_mb`（MB→G/M 整形）/ 他プロセス由来文字列のマークアップ escape / 提案コマンドの shlex クォート |
 | `test_collect.py` | 4 | `send_signal`（os.kill をモック・例外→結果コード翻訳）/ `current_pid` |
 | `test_spec_freshness.py` | 7 | 仕様書鮮度チェックの仕組みが揃っていることの構造テスト |
 | `test_doc_tree.py` | 10 | 構成ツリー ↔ 実ファイルの双方向照合（漏れ／幽霊）＋2箇所以外への複製検出 |
