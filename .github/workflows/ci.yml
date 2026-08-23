@@ -13,6 +13,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # genesis 監査に全履歴が必要
+      # main の履歴ルートが「初回 scaffold のみ・1 個」であることをサーバ側で常時検証する。
+      # ローカルフック(policy-guard)は人手・別マシン・別ツール由来の直コミットを見られない。
+      - name: genesis audit
+        run: bash scripts/check-main-genesis.sh
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"

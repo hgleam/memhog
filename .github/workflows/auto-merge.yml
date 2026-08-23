@@ -1,7 +1,11 @@
 name: auto-merge
 on:
   pull_request:
-    types: [opened, reopened, ready_for_review]
+    # edited: base を後から main へ向け直した PR も拾う（opened 時点の base しか見ないため）。
+    # synchronize: 既に開いている PR は opened を二度と出さない。予約が付かなかった PR
+    # (force push で切り直した・導入前から開いていた) が、直しても押しても入らず残るのを防ぐ。
+    # `gh pr merge --auto` は冪等なので、push のたびに呼んで構わない。
+    types: [opened, reopened, ready_for_review, edited, synchronize]
 
 permissions:
   contents: write

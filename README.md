@@ -1,5 +1,7 @@
 # memhog
 
+[![CI](https://github.com/hgleam/memhog/actions/workflows/ci.yml/badge.svg)](https://github.com/hgleam/memhog/actions/workflows/ci.yml)
+
 macOS の**実メモリ(物理フットプリント)を最も食っているプロセスを特定して提示する**診断 CLI。
 
 ## なぜ必要か
@@ -83,10 +85,10 @@ memhog                                    # どこからでも
 
 ## CI / auto-merge
 
-- PR / main への push で GitHub Actions（`test` ジョブ = ruff + mypy + pytest）が走る。main 保護 ruleset で `test` を必須チェックにしているため、緑にならないとマージできない。
+- PR / main への push で GitHub Actions（`test` ジョブ = genesis 監査 + doc 整合 + ruff + mypy + pytest）が走る。main 保護 ruleset で `test` を必須チェックにしているため、緑にならないとマージできない。
 - 自動マージのトグル:
   ```bash
-  scripts/automerge.sh status        # 現在の状態
+  scripts/automerge.sh status        # 現在の状態（auto-merge / branch-delete）
   scripts/automerge.sh on            # 有効化
   scripts/automerge.sh off           # 無効化（手動マージのみ）
   gh pr merge <N> --auto --squash    # ON 時: CI 緑で自動マージ予約

@@ -4,7 +4,7 @@
 
 `tests/` 配下、pytest。`collect`（外部コマンド I/O）をモックするため macOS 非依存で CI（Linux）でも動く。
 
-件数は pytest 収集数（parametrize 展開後）。合計 81（ドキュメント整合の 3 ファイルを除く）。
+件数は pytest 収集数（parametrize 展開後）。合計 88（ドキュメント整合の 3 ファイルを除く）。
 
 | ファイル | 件数 | 対象 |
 |---------|------|------|
@@ -13,6 +13,7 @@
 | `test_report.py` | 16 | `build_processes` / `build_groups` / `build_app_processes` / 走査幅 / `build_system_memory`（collect をモック） |
 | `test_group.py` | 17 | `app_label` / `group_label`（親子・器の素通り・循環）/ `group_processes`（合算・順位） |
 | `test_render.py` | 8 | `format_mb`（MB→G/M 整形）/ 他プロセス由来文字列のマークアップ escape / 提案コマンドの shlex クォート |
+| `test_cli_smoke.py` | 7 | 実エントリ（`python -m memhog.cli`）を subprocess で叩く（`--help` / `--version` / 併用制約のエラー）。版非互換・パース崩れの検出 |
 | `test_collect.py` | 4 | `send_signal`（os.kill をモック・例外→結果コード翻訳）/ `current_pid` |
 | `test_spec_freshness.py` | 7 | 仕様書鮮度チェックの仕組みが揃っていることの構造テスト |
 | `test_doc_tree.py` | 10 | 構成ツリー ↔ 実ファイルの双方向照合（漏れ／幽霊）＋2箇所以外への複製検出 |
@@ -41,9 +42,24 @@ poetry run mypy src       # 型チェック
 
 ## CI（GitHub Actions）
 
-- `.github/workflows/ci.yml`。PR / main への push で `test` ジョブ（ruff → mypy → pytest）が走る。
-- main 保護 ruleset で `test` を必須チェックにしており、緑にならないとマージできない。
-- 自動マージのトグルは `scripts/automerge.sh`（`on` / `off` / `status`）。ON 時は `gh pr merge <N> --auto --squash` で CI 緑後に自動マージ予約。
+- `.github/workflows/ci.yml`。PR / main への push で `test` ジョブが走る。
+  順序は **genesis 監査 → doc 整合 → 依存 install → ruff → mypy → pytest**。
+  前 2 つは標準ライブラリだけで動くので install より前に置く（install が失敗しても検出できる）。
+- **genesis 監査**（`scripts/check-main-genesis.sh`）: main の履歴ルートが「初回 scaffold のみ・1 個」
+  であることをサーバ側で常時検証する。ローカルの pre-commit フックは人手・別マシン・別ツール由来の
+  直コミットを見られないため、太い初回コミット・複数ルート（unrelated histories の接ぎ木）を CI で落とす。
+  この検査には全履歴が要るので `checkout` は `fetch-depth: 0`。
+- main 保護 ruleset で `test` を必須チェックにしており、緑にならないとマージできない
+  （`pull_request` / `non_fast_forward` / `required_status_checks` の 3 ルール）。
+- **auto-merge**（`.github/workflows/auto-merge.yml`）: PR が開かれると `gh pr merge --auto --squash`
+  を予約する。`types` に `edited` / `synchronize` を含めるのは、base を後から向け直した PR と、
+  既に開いていて `opened` を二度と出さない PR を取りこぼさないため（予約が付かないと、CI 緑・
+  衝突なしのまま**無反応で入らない**。エラーが出ないので気づけない）。`--auto` は冪等。
+- **ブランチ掃除**（`.github/workflows/cleanup-merged-branches.yml`）: `GITHUB_TOKEN` 起点の自動マージは
+  後続イベントを発火しないため `--delete-branch` も `delete_branch_on_merge` も効かない。
+  schedule はこの抑制の対象外なので、そちらで消す。
+- 自動マージのトグルは `scripts/automerge.sh`（`on` / `off` / `status`）。`on` は `allow_auto_merge` と
+  `delete_branch_on_merge` を両方立て、`status` は両方を表示する。
 
 ## 仕様書鮮度チェック（pre-commit）
 
