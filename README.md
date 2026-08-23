@@ -11,6 +11,19 @@ Activity モニタが示す本当の値＝`top` の MEM 列（物理フットプ
 memhog はこの物理フットプリントでランク付けし、`ps` の RSS との乖離が大きいプロセスに
 **`⚠ GPU/Metal常駐(psに出ない)`** 印を付けて「小さく見えるのに実は巨大」を炙り出す。
 
+「小さく見えるのに実は巨大」はもう 1 つある。**Chromium 系ブラウザや MCP サーバは
+ヘルパープロセスへ分散するため、1 プロセスずつ見ると上位から消える**（実測: あるブラウザが
+122 プロセスに割れて合計 15.9G）。`--group` は親子関係をたどってアプリ単位に合算する。
+
+```
+アプリ別 実メモリ合計 (ヘルパープロセスを親子関係で合算)
+  #  合計MEM  件数  最大単体  最大PID  APP
+  1    15.9G   122      1.6G    66385  ixBrowser
+  2     7.9G     1      7.9G    53893  com.apple.Virtualization.VirtualMachine
+  3     5.3G    18      743M    95980  claude
+  4     2.9G     2      2.8G    40994  koekaki  ⚠ GPU/Metal常駐(psに出ない)
+```
+
 詳しい仕様は [`docs/specification/`](docs/specification/README.md)（[依頼者向け](docs/specification/client/README.md) / [開発者向け](docs/specification/develop/README.md)）を参照。
 
 ```
@@ -26,12 +39,17 @@ memhog はこの物理フットプリントでランク付けし、`ps` の RSS 
     3   6.6G     12M   0.0  29473  llama-server ...              ⚠ GPU/Metal常駐(psに出ない)
 ```
 
+合計は共有メモリの重複計上を含みうる**上限寄りの推定値**で、順位付けのための指標。
+内訳は `memhog --app '<APP名>'` で開く。
+
 ## 使い方
 
 ```bash
 memhog                 # 実メモリ上位15件
 memhog -n 30           # 上位30件
 memhog -g python       # フルコマンドに "python" を含むものだけ
+memhog --group         # アプリ単位に合算（ヘルパーへ分散して埋もれるものを炙り出す）
+memhog --app ixBrowser # そのアプリの内訳（--group の APP 名を指定）
 memhog --json          # 機械可読 JSON（他スクリプト/通知連携/定期実行向け）
 memhog --watch 2       # 2秒ごとに更新し続ける監視モード（Ctrl-C で終了）
 memhog --kill          # 一覧から PID を選んで停止（既定で確認、不可逆操作）

@@ -62,6 +62,18 @@ def ps_rss_mb(pid: int) -> int:
     return int(out) // 1024 if out.isdigit() else 0
 
 
+def ps_snapshot() -> str:
+    """全プロセスの pid / ppid / rss / command を 1 回の ps で返す。
+
+    --group は数百プロセスを対象にするため、PID ごとに ps を叩くと呼び出しが
+    プロセス数の 2 倍に膨らむ。一括取得に置き換える。
+
+    Returns:
+        `ps -Ao pid=,ppid=,rss=,command=` の標準出力。取得できなければ空文字。
+    """
+    return _run(["ps", "-Ao", "pid=,ppid=,rss=,command="])
+
+
 def swap_usage() -> str:
     """sysctl vm.swapusage の値を返す。
 

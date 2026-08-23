@@ -31,6 +31,18 @@ hidden_gpu = (mem_mb >= HIDDEN_GPU_MIN_MB) and (mem_mb > rss_mb * HIDDEN_GPU_RSS
 
 True のプロセスは表・JSON で `⚠ GPU/Metal常駐(psに出ない)`（`hidden_gpu: true`）として印付けされる。
 
+## アプリ単位の合算とその限界（`--group`）
+
+`ProcessGroup.total_mb` は所属プロセスの MEM を**単純合算**する（`models.py`）。
+
+物理フットプリントはクリーンな共有ページの二重計上を避けるが、プロセス間で共有する
+dirty page（IPC 共有メモリ・Chromium のプロセス間共有アリーナ・GPU 共有サーフェス等）は
+**各プロセスの footprint にそれぞれ計上されうる**。したがってアプリ単位の合計は
+**上限寄りの推定値**であり、実際に解放される物理メモリはこれより小さいことがある。
+
+分散して埋もれているアプリを見つける（＝順位付けする）用途には十分だが、
+「このアプリを落とせば N GB 空く」と読むのは誤り。実際の空き変化は前後の PhysMem で確認する。
+
 ## メモリ値の解析（`parse.py`）
 
 ### `parse_mem_to_mb(value)`
@@ -58,5 +70,5 @@ MEM がパース不能な行はスキップ。CPU がパース不能なら 0.0�
 
 ## 表示上の強調（`render.py`）
 
-- MEM が `8000` MB 以上の行は赤字で強調（大口消費の視認性）。
+- MEM（`--group` では合計 MEM）が `_ALERT_MB = 8000` MB 以上の行は赤字で強調（大口消費の視認性）。
 - コマンドは 96 文字で末尾省略（`_MAX_CMD = 96`）。

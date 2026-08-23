@@ -1,7 +1,14 @@
 """collect と parse を組み合わせ、プロセス一覧とシステム状況を構築する。"""
 
-from . import collect, parse
-from .models import Process, SystemMemory
+from . import collect, group, parse
+from .models import Process, ProcessGroup, SystemMemory
+
+# --group は「分散して埋もれているアプリ」を探すのが目的なので、全プロセスを走査する。
+# 走査幅は ps の実プロセス数から決める(固定上限にすると、超えた分が黙って合計から落ちる)。
+# 実測: このマシンで 1065 プロセス。上限 500 では合計の半分が消えていた。
+GROUP_SAMPLE_MIN = 100
+# ps を撮ってから top を撮るまでに増えたプロセスのぶんの余裕。
+GROUP_SAMPLE_MARGIN = 50
 
 
 def build_processes(count: int, pattern: str | None = None) -> tuple[list[Process], str]:
@@ -57,3 +64,87 @@ def build_system_memory(top_raw: str) -> SystemMemory:
         swap=collect.swap_usage() or None,
         free_percentage=parse.parse_free_percentage(collect.memory_pressure()),
     )
+
+
+def build_groups(
+    count: int, pattern: str | None = None
+) -> tuple[list[ProcessGroup], str]:
+    """アプリ単位に集約したメモリ使用量の上位を返す。
+
+    プロセス単位のランキングでは、ヘルパープロセスへ分散するアプリ(Chromium 系等)が
+    順位に現れない。全プロセスを走査して親子関係で畳んでから順位を付ける。
+
+    Args:
+        count: 返すグループの最大数。
+        pattern: フルコマンドに対する部分一致(大文字小文字無視)。None なら全件対象。
+
+    Returns:
+        (ProcessGroup のリスト, top の生出力) のタプル。
+
+    Note:
+        フィルタは集約前のプロセスに掛かる。一致したプロセスだけが合計に入る。
+        top の走査幅は ps の実プロセス数から決める(固定上限で切ると、あふれた分が
+        黙って合計から抜け、「分散して埋もれている合計」という目的が崩れる)。
+    """
+    snapshot = parse.parse_ps_snapshot(collect.ps_snapshot())
+    raw = collect.top_sample(max(len(snapshot) + GROUP_SAMPLE_MARGIN, GROUP_SAMPLE_MIN))
+
+    needle = pattern.lower() if pattern else None
+    processes: list[Process] = []
+    for pid, mem_mb, cpu in parse.parse_top_processes(raw):
+        entry = snapshot.get(pid)
+        if entry is None or not entry.command:
+            continue
+        if needle is not None and needle not in entry.command.lower():
+            continue
+        processes.append(
+            Process(
+                pid=pid,
+                mem_mb=round(mem_mb),
+                rss_mb=entry.rss_mb,
+                cpu=cpu,
+                command=entry.command,
+            )
+        )
+    return group.group_processes(processes, snapshot)[:count], raw
+
+
+def build_app_processes(
+    label: str, count: int
+) -> tuple[list[Process], str]:
+    """指定アプリに属するプロセスだけを、メモリ降順で返す(--group のドリルダウン)。
+
+    所属判定は `--group` と同じ親子関係(`group.group_label`)で行う。コマンド文字列への
+    部分一致(`-g`)では、実行ファイル名が親アプリ名を含まない子プロセス(MCP サーバ等)を
+    取りこぼすため、同じ集約規則を使う。
+
+    Args:
+        label: アプリ名(--group の APP 列の値。大文字小文字は無視する)。
+        count: 返す最大件数。
+
+    Returns:
+        (Process のリスト, top の生出力) のタプル。
+    """
+    snapshot = parse.parse_ps_snapshot(collect.ps_snapshot())
+    raw = collect.top_sample(max(len(snapshot) + GROUP_SAMPLE_MARGIN, GROUP_SAMPLE_MIN))
+
+    needle = label.lower()
+    result: list[Process] = []
+    for pid, mem_mb, cpu in parse.parse_top_processes(raw):
+        entry = snapshot.get(pid)
+        if entry is None or not entry.command:
+            continue
+        if group.group_label(pid, snapshot).lower() != needle:
+            continue
+        result.append(
+            Process(
+                pid=pid,
+                mem_mb=round(mem_mb),
+                rss_mb=entry.rss_mb,
+                cpu=cpu,
+                command=entry.command,
+            )
+        )
+        if len(result) >= count:
+            break
+    return result, raw

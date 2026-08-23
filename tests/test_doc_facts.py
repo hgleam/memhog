@@ -42,6 +42,11 @@ FACTS: list[dict] = [
         "doc_pattern": r"`HIDDEN_GPU_RSS_RATIO`\s*\|\s*`(\d+)`",
     },
     {
+        "label": "--group の走査幅の下限（GROUP_SAMPLE_MIN）",
+        "source": ("src/memhog/report.py", r"GROUP_SAMPLE_MIN = (\d+)"),
+        "doc_pattern": r"`GROUP_SAMPLE_MIN = (\d+)`",
+    },
+    {
         "label": "コマンド表示の最大長（_MAX_CMD）",
         "source": ("src/memhog/render.py", r"_MAX_CMD = (\d+)"),
         "doc_pattern": r"`_MAX_CMD = (\d+)`",

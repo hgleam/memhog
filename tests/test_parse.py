@@ -6,6 +6,7 @@ from memhog.parse import (
     parse_free_percentage,
     parse_mem_to_mb,
     parse_phys_mem,
+    parse_ps_snapshot,
     parse_top_processes,
 )
 
@@ -80,3 +81,25 @@ class TestParseFreePercentage:
 
     def test_missing(self) -> None:
         assert parse_free_percentage("nothing") is None
+
+
+class TestParsePsSnapshot:
+    def test_parses_pid_ppid_rss_and_command_with_spaces(self) -> None:
+        out = (
+            "  123   1  2048 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome\n"
+            "  124 123  1024 /usr/bin/python main.py --port 8188\n"
+        )
+        entries = parse_ps_snapshot(out)
+        assert entries[123].ppid == 1
+        assert entries[123].rss_mb == 2
+        assert entries[123].command.endswith("MacOS/Google Chrome")
+        assert entries[124].command == "/usr/bin/python main.py --port 8188"
+
+    def test_keeps_rows_without_command(self) -> None:
+        """権限不足・ゾンビで command が空でも、プロセス数の母数からは落とさない。"""
+        entries = parse_ps_snapshot("  123   1  2048 \n  124 123  1024 /usr/bin/real\n")
+        assert set(entries) == {123, 124}
+        assert entries[123].command == ""
+
+    def test_skips_unparseable_lines(self) -> None:
+        assert parse_ps_snapshot("garbage\n\n  x y z cmd\n") == {}
