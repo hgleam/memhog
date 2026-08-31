@@ -35,7 +35,16 @@ class TestEntryPoint:
 
     def test_help_lists_every_option(self) -> None:
         out = _run("--help").stdout
-        for option in ("--count", "--grep", "--json", "--group", "--app", "--watch", "--kill"):
+        for option in (
+            "--count",
+            "--sort",
+            "--grep",
+            "--json",
+            "--group",
+            "--app",
+            "--watch",
+            "--kill",
+        ):
             assert option in out, f"{option} が --help に出ていない"
 
     def test_version_exits_zero(self) -> None:
@@ -64,3 +73,17 @@ class TestOptionGuards:
 
     def test_unknown_option_is_rejected(self) -> None:
         assert _run("--no-such-option").returncode != 0
+
+
+class TestSortOption:
+    """外部コマンドを叩かずに検査できる範囲（不正値の拒否）だけを見る。"""
+
+    def test_rejects_unknown_sort_key(self) -> None:
+        result = _run("--sort", "disk")
+        assert result.returncode != 0
+        assert "mem" in result.stdout + result.stderr
+
+    def test_help_documents_both_keys(self) -> None:
+        out = _run("--help").stdout
+        assert "mem" in out and "cpu" in out
+

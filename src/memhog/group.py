@@ -133,17 +133,20 @@ def group_label(pid: int, snapshot: dict[int, PsEntry]) -> str:
 
 
 def group_processes(
-    processes: list[Process], snapshot: dict[int, PsEntry]
+    processes: list[Process], snapshot: dict[int, PsEntry], order: str = "mem"
 ) -> list[ProcessGroup]:
-    """プロセス一覧をアプリ単位へ集約し、合計メモリの降順で返す。
+    """プロセス一覧をアプリ単位へ集約し、指定した資源の合計降順で返す。
 
     Args:
-        processes: 集約対象のプロセス(メモリ降順である必要はない)。
+        processes: 集約対象のプロセス(降順である必要はない)。
         snapshot: 全プロセスの ps 情報(親子関係の解決に使う)。
+        order: 並べる基準。"mem"(合計メモリ)または "cpu"(合計 CPU)。
 
     Returns:
-        ProcessGroup のリスト(合計メモリ降順。同値なら件数の多い順)。
+        ProcessGroup のリスト(指定資源の合計降順。同値なら件数の多い順)。
+        グループ内の members も同じ基準の降順に並ぶ(最大単体の表示に使うため)。
     """
+    by_cpu = order == "cpu"
     buckets: dict[str, list[Process]] = {}
     for process in processes:
         buckets.setdefault(group_label(process.pid, snapshot), []).append(process)
@@ -151,9 +154,18 @@ def group_processes(
     groups = [
         ProcessGroup(
             label=label,
-            members=tuple(sorted(members, key=lambda p: p.mem_mb, reverse=True)),
+            members=tuple(
+                sorted(
+                    members,
+                    key=(lambda p: p.cpu) if by_cpu else (lambda p: p.mem_mb),
+                    reverse=True,
+                )
+            ),
         )
         for label, members in buckets.items()
     ]
-    groups.sort(key=lambda g: (g.total_mb, g.count), reverse=True)
+    groups.sort(
+        key=(lambda g: (g.total_cpu, g.count)) if by_cpu else (lambda g: (g.total_mb, g.count)),
+        reverse=True,
+    )
     return groups

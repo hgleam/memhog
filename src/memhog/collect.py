@@ -25,16 +25,37 @@ def _run(args: list[str]) -> str:
     return proc.stdout
 
 
-def top_sample(count: int) -> str:
-    """メモリ降順で上位 count 件を含む top のワンショット出力を返す。
+# top は 1 サンプル目の %CPU を必ず 0.0 で返す(前回サンプルとの差分が無いため)。
+# 2 サンプル取り、2 つ目だけを解析する。実測で +1.3 秒かかるが、表示している
+# %CPU が常に嘘という状態のほうが害が大きい。
+TOP_SAMPLES = 2
+
+
+def top_sample(count: int, order: str = "mem") -> str:
+    """上位 count 件を含む top の出力を返す(2 サンプル分)。
 
     Args:
         count: 取得件数。
+        order: top の並び順("mem" または "cpu")。**呼び出し側が見たい順で指定する**。
+            表示側で並べ替えるだけでは、top が返した上位 N の中でしか順位が付かず、
+            母集団が「メモリ上位 N 件」に固定されてしまう(CPU 上位が入っていない)。
 
     Returns:
-        top の標準出力全体(PhysMem ヘッダを含む)。
+        top の標準出力全体(2 サンプル分。ヘッダを含む)。
     """
-    return _run(["top", "-l", "1", "-o", "mem", "-n", str(count), "-stats", "pid,mem,cpu"])
+    return _run(
+        [
+            "top",
+            "-l",
+            str(TOP_SAMPLES),
+            "-o",
+            order,
+            "-n",
+            str(count),
+            "-stats",
+            "pid,mem,cpu",
+        ]
+    )
 
 
 def ps_command(pid: int) -> str:

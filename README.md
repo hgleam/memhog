@@ -26,6 +26,22 @@ memhog はこの物理フットプリントでランク付けし、`ps` の RSS 
   4     2.9G     2      2.8G    40994  koekaki  ⚠ GPU/Metal常駐(psに出ない)
 ```
 
+同じ「分散して埋もれる」問題は **CPU** にもある。1 プロセスずつ見れば数 % でも、同じものが
+何十個も動いていれば合計は跳ねる。`--sort cpu` で CPU 順に切り替わり、`--group` と併せると
+アプリ単位の CPU 合計が見える（`--group` はメモリ順で見ているときも合計 CPU を常に併記する）。
+
+```
+アプリ別 CPU合計 (ヘルパープロセスを親子関係で合算)
+  #  合計MEM  合計CPU  件数  最大単体  最大PID  APP
+  1      17M      149     1       149    48568  PerfPowerServices
+  2     4.9G     18.3    57       8.3    79022  claude
+  3     4.2G     16.2     1      16.2      932  com.apple.Virtualization.VirtualMachine
+```
+
+システムの CPU 状況（Load Avg 1/5/15 分平均と user / sys / idle の内訳）も併記する。
+**sys が user を大きく上回るとき**は、個々のプロセスの計算ではなくカーネル側の処理
+（プロセス生成の嵐・I/O・ページング）を疑う手がかりになる。
+
 詳しい仕様は [`docs/specification/`](docs/specification/README.md)（[依頼者向け](docs/specification/client/README.md) / [開発者向け](docs/specification/develop/README.md)）を参照。
 
 ```

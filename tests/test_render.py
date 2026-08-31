@@ -6,7 +6,7 @@ import shlex
 import pytest
 from rich.console import Console
 
-from memhog.models import Process, ProcessGroup, SystemMemory
+from memhog.models import Process, ProcessGroup, SystemCpu, SystemMemory
 from memhog.render import format_mb, render_group_table, render_table
 
 
@@ -26,6 +26,7 @@ class TestFormatMb:
 
 
 _SYSTEM = SystemMemory(phys="63G used", swap="total = 1M", free_percentage="37%")
+_CPU = SystemCpu(load_average="1.00, 2.00, 3.00", usage="10% user, 20% sys, 70% idle")
 
 
 def _render(fn, *args) -> str:
@@ -43,13 +44,13 @@ class TestUntrustedTextIsNotInterpreted:
 
     def test_process_footer_escapes_markup(self) -> None:
         proc = Process(pid=42, mem_mb=100, rss_mb=50, cpu=0.0, command=self.HOSTILE)
-        out = _render(render_table, [proc], _SYSTEM)
+        out = _render(render_table, [proc], _SYSTEM, _CPU)
         assert "[bold red]INJECTED[/bold red]" in out
 
     def test_group_footer_escapes_markup(self) -> None:
         proc = Process(pid=42, mem_mb=100, rss_mb=50, cpu=0.0, command=self.HOSTILE)
         group = ProcessGroup(label="[red]evil[/red]", members=(proc,))
-        out = _render(render_group_table, [group], _SYSTEM)
+        out = _render(render_group_table, [group], _SYSTEM, _CPU)
         assert "[red]evil[/red]" in out
         assert "[bold red]INJECTED[/bold red]" in out
 
@@ -61,7 +62,43 @@ class TestSuggestedCommandIsShellSafe:
         proc = Process(pid=42, mem_mb=100, rss_mb=50, cpu=0.0, command="/bin/x")
         group = ProcessGroup(label="ev'il; touch /tmp/pwned", members=(proc,))
         label = "ev'il; touch /tmp/pwned"
-        out = _render(render_group_table, [group], _SYSTEM)
+        out = _render(render_group_table, [group], _SYSTEM, _CPU)
         assert f"memhog --app {shlex.quote(label)}" in out
         # クォート漏れ（アプリ名をそのまま ' で囲んだだけ）は不可。
         assert f"memhog --app '{label}'" not in out
+
+
+class TestCpuIsVisible:
+    """CPU の情報が実際に画面へ出ていること（値を持っていても出さなければ意味がない）。"""
+
+    PROC = Process(pid=42, mem_mb=100, rss_mb=100, cpu=250.0, command="/bin/hog")
+
+    def test_system_cpu_section_is_shown(self) -> None:
+        out = _render(render_table, [self.PROC], _SYSTEM, _CPU)
+        assert "システムCPU" in out
+        assert "1.00, 2.00, 3.00" in out
+        assert "10% user, 20% sys, 70% idle" in out
+
+    def test_process_cpu_value_is_shown(self) -> None:
+        out = _render(render_table, [self.PROC], _SYSTEM, _CPU)
+        assert "250" in out
+
+    def test_cpu_order_changes_the_title(self) -> None:
+        mem_title = _render(render_table, [self.PROC], _SYSTEM, _CPU)
+        cpu_title = _render(render_table, [self.PROC], _SYSTEM, _CPU, "cpu")
+        assert "実メモリ上位" in mem_title
+        assert "CPU 上位" in cpu_title
+
+    def test_group_table_always_shows_cpu_total(self) -> None:
+        """メモリ順で見ているときも合計CPU は出す（埋もれている消費に気づけるように）。"""
+        g = ProcessGroup(
+            label="swarm",
+            members=tuple(
+                Process(pid=i, mem_mb=1, rss_mb=1, cpu=5.0, command="/bin/swarm")
+                for i in range(1, 21)
+            ),
+        )
+        out = _render(render_group_table, [g], _SYSTEM, _CPU)
+        assert "合計CPU" in out
+        assert "100" in out
+

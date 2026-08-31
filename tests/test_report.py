@@ -30,7 +30,7 @@ PS_SNAPSHOT = """\
 
 @pytest.fixture(autouse=True)
 def _mock_collect(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(collect, "top_sample", lambda count: TOP_SAMPLE)
+    monkeypatch.setattr(collect, "top_sample", lambda count, order="mem": TOP_SAMPLE)
     monkeypatch.setattr(collect, "ps_command", lambda pid: _COMMANDS.get(pid, ""))
     monkeypatch.setattr(collect, "ps_rss_mb", lambda pid: _RSS.get(pid, 0))
     monkeypatch.setattr(collect, "ps_snapshot", lambda: PS_SNAPSHOT)
@@ -111,7 +111,7 @@ class TestGroupSampleWidth:
         monkeypatch.setattr(collect, "ps_snapshot", lambda: many)
         requested: list[int] = []
 
-        def _top(count: int) -> str:
+        def _top(count: int, order: str = "mem") -> str:
             requested.append(count)
             return TOP_SAMPLE
 
@@ -123,7 +123,7 @@ class TestGroupSampleWidth:
         monkeypatch.setattr(collect, "ps_snapshot", lambda: "")
         requested: list[int] = []
 
-        def _top(count: int) -> str:
+        def _top(count: int, order: str = "mem") -> str:
             requested.append(count)
             return TOP_SAMPLE
 
