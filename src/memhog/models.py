@@ -58,6 +58,19 @@ class SystemMemory:
 
 
 @dataclass(frozen=True)
+class SystemCpu:
+    """システム全体の CPU 状況。
+
+    Attributes:
+        load_average: top の Load Avg(1 / 5 / 15 分平均)。
+        usage: top の CPU usage 行(user / sys / idle の内訳)。
+    """
+
+    load_average: str | None
+    usage: str | None
+
+
+@dataclass(frozen=True)
 class PsEntry:
     """ps の 1 行分(全プロセス走査用)。
 
@@ -100,6 +113,15 @@ class ProcessGroup:
     def count(self) -> int:
         """所属プロセス数。"""
         return len(self.members)
+
+    @property
+    def total_cpu(self) -> float:
+        """グループ全体の CPU 使用率合計(%)。
+
+        1 プロセスずつ見ると数 % でも、同じアプリが何十個も動いていれば合計は跳ねる。
+        メモリの合計と同じ理由で、分散して埋もれる消費はここでしか見えない。
+        """
+        return sum(p.cpu for p in self.members)
 
     @property
     def largest(self) -> Process:

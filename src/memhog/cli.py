@@ -64,6 +64,11 @@ def _kill_process(
 @app.command()
 def main(
     count: int = typer.Option(15, "-n", "--count", help="表示する件数。"),
+    sort: str = typer.Option(
+        "mem",
+        "--sort",
+        help="並べる基準。mem(実メモリ) または cpu(CPU使用率)。",
+    ),
     grep: str | None = typer.Option(
         None, "-g", "--grep", help="フルコマンドに部分一致するものだけ表示(大小無視)。"
     ),
@@ -88,13 +93,17 @@ def main(
         False, "--version", callback=_version_callback, is_eager=True, help="バージョン表示。"
     ),
 ) -> None:
-    """実メモリ上位プロセスを表示する。
+    """実メモリ(既定)または CPU の上位プロセスを表示する。
 
     ps の RSS は Metal/MPS(GPU 共有メモリ)を数えないため、ComfyUI 等の ML 系は
     小さく見える。本コマンドは top の物理フットプリントでランクし、その乖離を
     「⚠ GPU/Metal常駐」印で炙り出す。
     """
     console = Console()
+
+    if sort not in ("mem", "cpu"):
+        console.print("[red]--sort は mem か cpu を指定してください。[/red]")
+        raise typer.Exit(code=1)
 
     if group_by_app and app is not None:
         console.print(
@@ -112,37 +121,40 @@ def main(
         if json_out or kill:
             console.print("[red]--watch は --json / --kill と併用できません。[/red]")
             raise typer.Exit(code=1)
-        _run_watch(console, count, grep, watch, group_by_app, app)
+        _run_watch(console, count, grep, watch, group_by_app, app, sort)
         return
 
     if app is not None:
-        processes, top_raw = report.build_app_processes(app, count)
+        processes, top_raw = report.build_app_processes(app, count, sort)
         system = report.build_system_memory(top_raw)
+        cpu = report.build_system_cpu(top_raw)
         if json_out:
-            typer.echo(render.build_json(processes, system))
+            typer.echo(render.build_json(processes, system, cpu))
             return
-        render.render_table(console, processes, system)
+        render.render_table(console, processes, system, cpu, sort)
         if kill:
             _kill_process(processes, console, force, assume_yes)
         return
 
     if group_by_app:
-        groups, top_raw = report.build_groups(count, grep)
+        groups, top_raw = report.build_groups(count, grep, sort)
         system = report.build_system_memory(top_raw)
+        cpu = report.build_system_cpu(top_raw)
         if json_out:
-            typer.echo(render.build_group_json(groups, system))
+            typer.echo(render.build_group_json(groups, system, cpu))
             return
-        render.render_group_table(console, groups, system, grep)
+        render.render_group_table(console, groups, system, cpu, grep, sort)
         return
 
-    processes, top_raw = report.build_processes(count, grep)
+    processes, top_raw = report.build_processes(count, grep, sort)
     system = report.build_system_memory(top_raw)
+    cpu = report.build_system_cpu(top_raw)
 
     if json_out:
-        typer.echo(render.build_json(processes, system))
+        typer.echo(render.build_json(processes, system, cpu))
         return
 
-    render.render_table(console, processes, system)
+    render.render_table(console, processes, system, cpu, sort)
     if kill:
         _kill_process(processes, console, force, assume_yes)
 
@@ -154,6 +166,7 @@ def _run_watch(
     interval: float,
     group_by_app: bool = False,
     app: str | None = None,
+    sort: str = "mem",
 ) -> None:
     """--watch: 一定間隔で画面を再描画し続ける。
 
@@ -164,24 +177,27 @@ def _run_watch(
         interval: 更新間隔(秒)。
         group_by_app: True ならアプリ単位に合算して描画する。
         app: 指定時はそのアプリに属するプロセスだけを描画する。
+        sort: 並べる基準("mem" または "cpu")。
     """
     try:
         while True:
             if group_by_app:
-                groups, top_raw = report.build_groups(count, grep)
+                groups, top_raw = report.build_groups(count, grep, sort)
                 system = report.build_system_memory(top_raw)
+                cpu = report.build_system_cpu(top_raw)
                 console.clear()
-                render.render_group_table(console, groups, system, grep)
+                render.render_group_table(console, groups, system, cpu, grep, sort)
                 console.print(f"[dim]{interval:g}秒ごとに更新 / Ctrl-C で終了[/dim]")
                 time.sleep(interval)
                 continue
             if app is not None:
-                processes, top_raw = report.build_app_processes(app, count)
+                processes, top_raw = report.build_app_processes(app, count, sort)
             else:
-                processes, top_raw = report.build_processes(count, grep)
+                processes, top_raw = report.build_processes(count, grep, sort)
             system = report.build_system_memory(top_raw)
+            cpu = report.build_system_cpu(top_raw)
             console.clear()
-            render.render_table(console, processes, system)
+            render.render_table(console, processes, system, cpu, sort)
             console.print(f"[dim]{interval:g}秒ごとに更新 / Ctrl-C で終了[/dim]")
             time.sleep(interval)
     except KeyboardInterrupt:

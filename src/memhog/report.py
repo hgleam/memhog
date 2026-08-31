@@ -1,7 +1,7 @@
 """collect と parse を組み合わせ、プロセス一覧とシステム状況を構築する。"""
 
 from . import collect, group, parse
-from .models import Process, ProcessGroup, SystemMemory
+from .models import Process, ProcessGroup, SystemCpu, SystemMemory
 
 # --group は「分散して埋もれているアプリ」を探すのが目的なので、全プロセスを走査する。
 # 走査幅は ps の実プロセス数から決める(固定上限にすると、超えた分が黙って合計から落ちる)。
@@ -11,7 +11,9 @@ GROUP_SAMPLE_MIN = 100
 GROUP_SAMPLE_MARGIN = 50
 
 
-def build_processes(count: int, pattern: str | None = None) -> tuple[list[Process], str]:
+def build_processes(
+    count: int, pattern: str | None = None, order: str = "mem"
+) -> tuple[list[Process], str]:
     """メモリ上位プロセスを取得し、必要ならコマンド名でフィルタする。
 
     フィルタ時は取り漏らしを防ぐため多めに top を取得してから絞り込む。
@@ -19,14 +21,17 @@ def build_processes(count: int, pattern: str | None = None) -> tuple[list[Proces
     Args:
         count: 返す最大件数。
         pattern: フルコマンドに対する部分一致(大文字小文字無視)。None なら全件対象。
+        order: 並べる基準。"mem"(物理フットプリント)または "cpu"(CPU 使用率)。
+            **top 側の並び順ごと切り替える**。取得後に並べ替えるだけでは、
+            母集団が「メモリ上位 N 件」のままになり CPU 上位が入らない。
 
     Returns:
-        (Process のリスト, top の生出力) のタプル。生出力は SystemMemory 構築に再利用する。
+        (Process のリスト, top の生出力) のタプル。生出力はシステム状況の構築に再利用する。
     """
     sample_count = count * 4 if pattern else count
     if sample_count < 40:
         sample_count = 40 if pattern else count
-    raw = collect.top_sample(sample_count)
+    raw = collect.top_sample(sample_count, order)
 
     needle = pattern.lower() if pattern else None
     result: list[Process] = []
@@ -66,8 +71,23 @@ def build_system_memory(top_raw: str) -> SystemMemory:
     )
 
 
+def build_system_cpu(top_raw: str) -> SystemCpu:
+    """システム全体の CPU 状況を構築する。
+
+    Args:
+        top_raw: build_processes が返した top の生出力(ヘッダを含む)。
+
+    Returns:
+        SystemCpu。
+    """
+    return SystemCpu(
+        load_average=parse.parse_load_average(top_raw),
+        usage=parse.parse_cpu_usage(top_raw),
+    )
+
+
 def build_groups(
-    count: int, pattern: str | None = None
+    count: int, pattern: str | None = None, order: str = "mem"
 ) -> tuple[list[ProcessGroup], str]:
     """アプリ単位に集約したメモリ使用量の上位を返す。
 
@@ -87,7 +107,9 @@ def build_groups(
         黙って合計から抜け、「分散して埋もれている合計」という目的が崩れる)。
     """
     snapshot = parse.parse_ps_snapshot(collect.ps_snapshot())
-    raw = collect.top_sample(max(len(snapshot) + GROUP_SAMPLE_MARGIN, GROUP_SAMPLE_MIN))
+    raw = collect.top_sample(
+        max(len(snapshot) + GROUP_SAMPLE_MARGIN, GROUP_SAMPLE_MIN), order
+    )
 
     needle = pattern.lower() if pattern else None
     processes: list[Process] = []
@@ -106,11 +128,11 @@ def build_groups(
                 command=entry.command,
             )
         )
-    return group.group_processes(processes, snapshot)[:count], raw
+    return group.group_processes(processes, snapshot, order)[:count], raw
 
 
 def build_app_processes(
-    label: str, count: int
+    label: str, count: int, order: str = "mem"
 ) -> tuple[list[Process], str]:
     """指定アプリに属するプロセスだけを、メモリ降順で返す(--group のドリルダウン)。
 
@@ -126,7 +148,9 @@ def build_app_processes(
         (Process のリスト, top の生出力) のタプル。
     """
     snapshot = parse.parse_ps_snapshot(collect.ps_snapshot())
-    raw = collect.top_sample(max(len(snapshot) + GROUP_SAMPLE_MARGIN, GROUP_SAMPLE_MIN))
+    raw = collect.top_sample(
+        max(len(snapshot) + GROUP_SAMPLE_MARGIN, GROUP_SAMPLE_MIN), order
+    )
 
     needle = label.lower()
     result: list[Process] = []

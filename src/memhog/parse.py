@@ -39,22 +39,27 @@ def parse_mem_to_mb(value: str) -> float:
 
 
 def parse_top_processes(output: str) -> list[tuple[int, float, float]]:
-    """`top -l 1 -o mem -stats pid,mem,cpu` の出力を解析する。
+    """`top -l 2 -stats pid,mem,cpu` の出力を解析する(**最後のサンプルだけ**)。
 
-    ヘッダ("PID ...")行以降のプロセス行のみを対象にする。
+    top は 1 サンプル目の %CPU を必ず 0.0 で返すため、collect は 2 サンプル取る。
+    出力にはプロセス表が 2 つ入っているので、**新しいほう(最後の表)だけ**を採用する。
+    継ぎ足すと同じ PID が 2 回現れ、件数も合計も倍になる。
 
     Args:
-        output: top コマンドの標準出力全体。
+        output: top コマンドの標準出力全体(サンプルが複数含まれてよい)。
 
     Returns:
-        (pid, mem_mb, cpu) のタプルのリスト。top の並び(メモリ降順)を保つ。
+        (pid, mem_mb, cpu) のタプルのリスト。top の並びを保つ。
     """
     rows: list[tuple[int, float, float]] = []
     in_table = False
     for line in output.splitlines():
+        if line.startswith("PID"):
+            # 新しいサンプルの表が始まった。前の表の行は捨てる。
+            in_table = True
+            rows = []
+            continue
         if not in_table:
-            if line.startswith("PID"):
-                in_table = True
             continue
         parts = line.split()
         if len(parts) < 3 or not parts[0].isdigit():
@@ -72,6 +77,55 @@ def parse_top_processes(output: str) -> list[tuple[int, float, float]]:
     return rows
 
 
+def _last_header_value(output: str, prefix: str) -> str | None:
+    """ヘッダ行の値を返す(複数サンプルがあれば最後のものを採る)。
+
+    Args:
+        output: top コマンドの標準出力全体。
+        prefix: 行頭に一致させる見出し(例 "PhysMem:")。
+
+    Returns:
+        見出し以降の文字列。見つからなければ None。
+    """
+    found: str | None = None
+    for line in output.splitlines():
+        if line.startswith(prefix):
+            found = line.split(":", 1)[1].strip()
+    return found
+
+
+def parse_load_average(output: str) -> str | None:
+    """top のヘッダから Load Avg の値を取り出す。
+
+    Args:
+        output: top コマンドの標準出力全体。
+
+    Returns:
+        "8.42, 11.53, 15.80" のような文字列。見つからなければ None。
+
+    Note:
+        1 / 5 / 15 分平均。**瞬間値ではなく、この 3 つを並べて見る**ことに意味がある。
+        1 分だけ高いなら一過性、3 つとも高いなら定常的に詰まっている。
+    """
+    return _last_header_value(output, "Load Avg:")
+
+
+def parse_cpu_usage(output: str) -> str | None:
+    """top のヘッダから CPU usage の内訳を取り出す。
+
+    Args:
+        output: top コマンドの標準出力全体。
+
+    Returns:
+        "19.97% user, 32.1% sys, 48.1% idle" のような文字列。見つからなければ None。
+
+    Note:
+        sys が user を大きく上回るときは、個々のプロセスの計算ではなく
+        **カーネル側の処理**(プロセス生成の嵐・I/O・ページング)を疑う手がかりになる。
+    """
+    return _last_header_value(output, "CPU usage:")
+
+
 def parse_phys_mem(output: str) -> str | None:
     """top の出力ヘッダから PhysMem 行の内容を取り出す。
 
@@ -80,11 +134,11 @@ def parse_phys_mem(output: str) -> str | None:
 
     Returns:
         "PhysMem: " 以降の文字列。見つからなければ None。
+
+    Note:
+        出力に複数サンプルが含まれる場合は**最後の値**を返す(最新の状態)。
     """
-    for line in output.splitlines():
-        if line.startswith("PhysMem:"):
-            return line.split(":", 1)[1].strip()
-    return None
+    return _last_header_value(output, "PhysMem:")
 
 
 def parse_free_percentage(output: str) -> str | None:
