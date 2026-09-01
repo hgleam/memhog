@@ -11,7 +11,9 @@ dependencies = [
 ]
 
 [project.scripts]
+# 同じ CLI を、既定の並び順だけ変えて 2 つの名前で公開する（定義は cli._build_app に 1 つ）。
 memhog = "memhog.cli:app"
+cpuhog = "memhog.cli:cpu_app"
 
 [tool.poetry]
 packages = [{ include = "memhog", from = "src" }]

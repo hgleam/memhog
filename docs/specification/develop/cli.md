@@ -1,13 +1,33 @@
 # CLI オプション
 
-エントリポイント: `memhog.cli:app`（typer、単一コマンド）。定義は `src/memhog/cli.py`。
+エントリポイント: `memhog.cli:app`（`memhog`）と `memhog.cli:cpu_app`（`cpuhog`）。
+定義は `src/memhog/cli.py`。
+
+## 2 つのコマンドの作り方（`_build_app`）
+
+`memhog` と `cpuhog` は **`--sort` の既定値だけが違う同一の CLI**。オプションの宣言は
+`_build_app(program, default_sort, help_text)` の中に 1 つだけ置き、既定値と説明文を
+引数で差し替える。
+
+```python
+app     = _build_app("memhog", "mem", _MEM_HELP)
+cpu_app = _build_app("cpuhog", "cpu", _CPU_HELP)
+```
+
+- **`@app.command()` を 2 つ並べて書かない。** 片方にオプションを足し忘れても何も壊れず、
+  `--help` の差として静かに残る。ファクトリなら構造的に同じものしか作れない。
+- **実行時に argv を書き換えて既定を変える方式は採らない。** `cpuhog --help` が `--sort` の
+  既定を `mem` と表示してしまい、ヘルプが嘘をつく。
+- `--version` は `_make_version_callback(program)` で自分のコマンド名を名乗る。
+- `--help` の本文は `@cli.command(help=help_text)` に渡す（関数の docstring は実装の説明用）。
+  2 つの入口があっても説明が同じでは、利用者が違いを判断できない。
 
 ## オプション一覧
 
 | オプション | 短縮 | 既定 | 説明 |
 |-----------|------|------|------|
 | `--count` | `-n` | `15` | 表示する件数 |
-| `--sort` | | `mem` | 並べる基準（`mem` = 実メモリ / `cpu` = CPU 使用率） |
+| `--sort` | | コマンド依存 | 並べる基準（`mem` = 実メモリ / `cpu` = CPU 使用率）。既定は `memhog` なら `mem`、`cpuhog` なら `cpu` |
 | `--grep` | `-g` | なし | フルコマンドへの部分一致で絞り込み（大小無視） |
 | `--json` | | `False` | 機械可読な JSON で出力 |
 | `--group` | | `False` | プロセス単位でなくアプリ単位に合算して表示 |

@@ -1,7 +1,21 @@
-"""memhog の typer エントリポイント。"""
+"""typer エントリポイント。
+
+同じ CLI を **既定の並び順だけ変えた 2 つのコマンド**として公開する。
+
+    memhog … 実メモリ順(--sort mem)
+    cpuhog … CPU 順(--sort cpu)
+
+オプションの宣言は `_build_app` の中に 1 つだけ置き、既定値を引数で差し替える。
+`@app.command()` を 2 つ並べて書くと、片方にオプションを足し忘れても何も壊れず
+`--help` の差として静かに残る。ファクトリなら**構造的に同じものしか作れない**。
+
+実行時に argv を書き換えて既定を変える方式は採らない。`cpuhog --help` が `--sort` の
+既定を mem と表示してしまい、**ヘルプが嘘をつく**。
+"""
 
 import signal
 import time
+from collections.abc import Callable
 
 import typer
 from rich.console import Console
@@ -9,16 +23,41 @@ from rich.console import Console
 from . import __version__, collect, render, report
 from .models import Process
 
-app = typer.Typer(
-    add_completion=False,
-    help="macOS の実メモリ(物理フットプリント)を食っているプロセスを特定して提示する。",
-)
+# 各コマンドの説明。--sort の既定以外は同じ CLI なので、違いが分かるように書き分ける。
+_MEM_HELP = """macOS の実メモリ(物理フットプリント)を食っているプロセスを特定して提示する。
+
+ps の RSS は Metal/MPS(GPU 共有メモリ)を数えないため、ComfyUI 等の ML 系は小さく見える。
+top の物理フットプリントでランクし、その乖離を「⚠ GPU/Metal常駐」印で炙り出す。
+
+CPU 順で見るなら cpuhog(または --sort cpu)。"""
+
+_CPU_HELP = """macOS の CPU を食っているプロセスを特定して提示する。
+
+1 プロセスずつ見ると数 % でも、同じものが何十個も動いていれば合計は跳ねる。
+--group はヘルパープロセスを親子関係で合算するので、分散して埋もれる消費が見える。
+
+sys が user を大きく上回るときは、個々のプロセスの計算ではなくカーネル側の処理
+(プロセス生成の嵐・I/O・ページング)を疑う。
+
+実メモリ順で見るなら memhog(または --sort mem)。"""
 
 
-def _version_callback(value: bool) -> None:
-    if value:
-        typer.echo(f"memhog {__version__}")
-        raise typer.Exit()
+def _make_version_callback(program: str) -> Callable[[bool], None]:
+    """`--version` で自分のコマンド名を名乗るコールバックを作る。
+
+    Args:
+        program: 名乗るコマンド名("memhog" / "cpuhog")。
+
+    Returns:
+        typer の is_eager コールバック。
+    """
+
+    def _callback(value: bool) -> None:
+        if value:
+            typer.echo(f"{program} {__version__}")
+            raise typer.Exit()
+
+    return _callback
 
 
 def _kill_process(
@@ -61,102 +100,120 @@ def _kill_process(
     console.print(f"[green]PID {pid} に {sig.name} を送信しました。[/green]")
 
 
-@app.command()
-def main(
-    count: int = typer.Option(15, "-n", "--count", help="表示する件数。"),
-    sort: str = typer.Option(
-        "mem",
-        "--sort",
-        help="並べる基準。mem(実メモリ) または cpu(CPU使用率)。",
-    ),
-    grep: str | None = typer.Option(
-        None, "-g", "--grep", help="フルコマンドに部分一致するものだけ表示(大小無視)。"
-    ),
-    json_out: bool = typer.Option(False, "--json", help="機械可読な JSON で出力する。"),
-    group_by_app: bool = typer.Option(
-        False,
-        "--group",
-        help="プロセス単位でなくアプリ単位に合算して表示する(分散して埋もれるものを炙り出す)。",
-    ),
-    app: str | None = typer.Option(
-        None,
-        "--app",
-        help="--group の APP 名を指定し、そのアプリに属するプロセスだけを一覧する(内訳)。",
-    ),
-    watch: float | None = typer.Option(
-        None, "--watch", help="指定秒間隔で画面を更新し続ける(top のように監視)。"
-    ),
-    kill: bool = typer.Option(False, "--kill", help="一覧から PID を選んで停止する。"),
-    force: bool = typer.Option(False, "--force", help="--kill 時に SIGKILL を使う。"),
-    assume_yes: bool = typer.Option(False, "-y", "--yes", help="--kill の確認を省略する。"),
-    _version: bool = typer.Option(
-        False, "--version", callback=_version_callback, is_eager=True, help="バージョン表示。"
-    ),
-) -> None:
-    """実メモリ(既定)または CPU の上位プロセスを表示する。
+def _build_app(program: str, default_sort: str, help_text: str) -> typer.Typer:
+    """コマンドを組み立てる(memhog / cpuhog で共有する唯一の定義)。
 
-    ps の RSS は Metal/MPS(GPU 共有メモリ)を数えないため、ComfyUI 等の ML 系は
-    小さく見える。本コマンドは top の物理フットプリントでランクし、その乖離を
-    「⚠ GPU/Metal常駐」印で炙り出す。
+    Args:
+        program: コマンド名。`--version` の名乗りに使う。
+        default_sort: `--sort` の既定値("mem" または "cpu")。
+        help_text: コマンドの説明(`--help` の冒頭)。
+
+    Returns:
+        組み立てた typer アプリ。
     """
-    console = Console()
+    cli = typer.Typer(add_completion=False, help=help_text)
 
-    if sort not in ("mem", "cpu"):
-        console.print("[red]--sort は mem か cpu を指定してください。[/red]")
-        raise typer.Exit(code=1)
+    @cli.command(help=help_text)
+    def main(
+        count: int = typer.Option(15, "-n", "--count", help="表示する件数。"),
+        sort: str = typer.Option(
+            default_sort,
+            "--sort",
+            help="並べる基準。mem(実メモリ) または cpu(CPU使用率)。",
+        ),
+        grep: str | None = typer.Option(
+            None, "-g", "--grep", help="フルコマンドに部分一致するものだけ表示(大小無視)。"
+        ),
+        json_out: bool = typer.Option(False, "--json", help="機械可読な JSON で出力する。"),
+        group_by_app: bool = typer.Option(
+            False,
+            "--group",
+            help="プロセス単位でなくアプリ単位に合算して表示する(分散して埋もれるものを炙り出す)。",
+        ),
+        app: str | None = typer.Option(
+            None,
+            "--app",
+            help="--group の APP 名を指定し、そのアプリに属するプロセスだけを一覧する(内訳)。",
+        ),
+        watch: float | None = typer.Option(
+            None, "--watch", help="指定秒間隔で画面を更新し続ける(top のように監視)。"
+        ),
+        kill: bool = typer.Option(False, "--kill", help="一覧から PID を選んで停止する。"),
+        force: bool = typer.Option(False, "--force", help="--kill 時に SIGKILL を使う。"),
+        assume_yes: bool = typer.Option(False, "-y", "--yes", help="--kill の確認を省略する。"),
+        _version: bool = typer.Option(
+            False,
+            "--version",
+            callback=_make_version_callback(program),
+            is_eager=True,
+            help="バージョン表示。",
+        ),
+    ) -> None:
+        """上位プロセスを表示する(--help の文面は help_text 側が正本)。
 
-    if group_by_app and app is not None:
-        console.print(
-            "[red]--group と --app は併用できません(合計か内訳かを選んでください)。[/red]"
-        )
-        raise typer.Exit(code=1)
+        併用制約を先に検査し、`--app` / `--group` / 通常 の 3 経路へ振り分ける。
+        """
+        console = Console()
 
-    if group_by_app and kill:
-        console.print(
-            "[red]--group は --kill と併用できません(停止対象は PID で選ぶ必要があるため)。[/red]"
-        )
-        raise typer.Exit(code=1)
-
-    if watch is not None:
-        if json_out or kill:
-            console.print("[red]--watch は --json / --kill と併用できません。[/red]")
+        if sort not in ("mem", "cpu"):
+            console.print("[red]--sort は mem か cpu を指定してください。[/red]")
             raise typer.Exit(code=1)
-        _run_watch(console, count, grep, watch, group_by_app, app, sort)
-        return
 
-    if app is not None:
-        processes, top_raw = report.build_app_processes(app, count, sort)
+        if group_by_app and app is not None:
+            console.print(
+                "[red]--group と --app は併用できません(合計か内訳かを選んでください)。[/red]"
+            )
+            raise typer.Exit(code=1)
+
+        if group_by_app and kill:
+            console.print(
+                "[red]--group は --kill と併用できません"
+                "(停止対象は PID で選ぶ必要があるため)。[/red]"
+            )
+            raise typer.Exit(code=1)
+
+        if watch is not None:
+            if json_out or kill:
+                console.print("[red]--watch は --json / --kill と併用できません。[/red]")
+                raise typer.Exit(code=1)
+            _run_watch(console, count, grep, watch, group_by_app, app, sort)
+            return
+
+        if app is not None:
+            processes, top_raw = report.build_app_processes(app, count, sort)
+            system = report.build_system_memory(top_raw)
+            cpu = report.build_system_cpu(top_raw)
+            if json_out:
+                typer.echo(render.build_json(processes, system, cpu))
+                return
+            render.render_table(console, processes, system, cpu, sort)
+            if kill:
+                _kill_process(processes, console, force, assume_yes)
+            return
+
+        if group_by_app:
+            groups, top_raw = report.build_groups(count, grep, sort)
+            system = report.build_system_memory(top_raw)
+            cpu = report.build_system_cpu(top_raw)
+            if json_out:
+                typer.echo(render.build_group_json(groups, system, cpu))
+                return
+            render.render_group_table(console, groups, system, cpu, grep, sort)
+            return
+
+        processes, top_raw = report.build_processes(count, grep, sort)
         system = report.build_system_memory(top_raw)
         cpu = report.build_system_cpu(top_raw)
+
         if json_out:
             typer.echo(render.build_json(processes, system, cpu))
             return
+
         render.render_table(console, processes, system, cpu, sort)
         if kill:
             _kill_process(processes, console, force, assume_yes)
-        return
 
-    if group_by_app:
-        groups, top_raw = report.build_groups(count, grep, sort)
-        system = report.build_system_memory(top_raw)
-        cpu = report.build_system_cpu(top_raw)
-        if json_out:
-            typer.echo(render.build_group_json(groups, system, cpu))
-            return
-        render.render_group_table(console, groups, system, cpu, grep, sort)
-        return
-
-    processes, top_raw = report.build_processes(count, grep, sort)
-    system = report.build_system_memory(top_raw)
-    cpu = report.build_system_cpu(top_raw)
-
-    if json_out:
-        typer.echo(render.build_json(processes, system, cpu))
-        return
-
-    render.render_table(console, processes, system, cpu, sort)
-    if kill:
-        _kill_process(processes, console, force, assume_yes)
+    return cli
 
 
 def _run_watch(
@@ -202,6 +259,10 @@ def _run_watch(
             time.sleep(interval)
     except KeyboardInterrupt:
         console.print("\n終了しました。")
+
+
+app = _build_app("memhog", "mem", _MEM_HELP)
+cpu_app = _build_app("cpuhog", "cpu", _CPU_HELP)
 
 
 if __name__ == "__main__":
