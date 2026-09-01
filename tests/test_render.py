@@ -6,8 +6,8 @@ import shlex
 import pytest
 from rich.console import Console
 
-from memhog.models import Process, ProcessGroup, SystemCpu, SystemMemory
-from memhog.render import format_mb, render_group_table, render_table
+from reshog.models import Process, ProcessGroup, SystemCpu, SystemMemory
+from reshog.render import format_mb, render_group_table, render_table
 
 
 class TestFormatMb:

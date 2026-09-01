@@ -114,7 +114,7 @@ def memory_pressure() -> str:
 
 
 def current_pid() -> int:
-    """memhog 自身の PID を返す。
+    """reshog 自身の PID を返す。
 
     Returns:
         自プロセスの PID。

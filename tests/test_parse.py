@@ -2,7 +2,7 @@
 
 import pytest
 
-from memhog.parse import (
+from reshog.parse import (
     parse_free_percentage,
     parse_mem_to_mb,
     parse_phys_mem,

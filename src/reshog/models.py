@@ -1,4 +1,4 @@
-"""memhog のドメインモデル。"""
+"""reshog のドメインモデル。"""
 
 from dataclasses import dataclass
 

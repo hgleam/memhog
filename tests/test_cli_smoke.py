@@ -13,10 +13,10 @@ import re
 import subprocess
 import sys
 
-CLI = [sys.executable, "-m", "memhog.cli"]
+CLI = [sys.executable, "-m", "reshog.cli"]
 # cpuhog は console script なので、同じ入口を import して直接叩く
 # （インストール済みの実行ファイルに依存すると、未インストールの環境で落ちる）。
-CPU_CLI = [sys.executable, "-c", "from memhog.cli import cpu_app; cpu_app()"]
+CPU_CLI = [sys.executable, "-c", "from reshog.cli import cpu_app; cpu_app()"]
 _ANSI = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 
 
@@ -145,6 +145,6 @@ class TestEntryPointsAreDeclared:
         root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         with open(os.path.join(root, "pyproject.toml"), encoding="utf-8") as fh:
             content = fh.read()
-        assert 'memhog = "memhog.cli:app"' in content
-        assert 'cpuhog = "memhog.cli:cpu_app"' in content
+        assert 'memhog = "reshog.cli:app"' in content
+        assert 'cpuhog = "reshog.cli:cpu_app"' in content
 

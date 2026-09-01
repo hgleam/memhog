@@ -1,6 +1,6 @@
 """CPU 表示の検証。
 
-memhog は元々 `%CPU` 列を出していたが、`top -l 1` は 1 サンプル目の CPU を必ず 0.0 で
+reshog は元々 `%CPU` 列を出していたが、`top -l 1` は 1 サンプル目の CPU を必ず 0.0 で
 返すため、**表示されていた値は常に 0 だった**（前サンプルとの差分が取れないため）。
 2 サンプル取って 2 つ目を読む形へ直した。ここではその形を固定する。
 
@@ -14,8 +14,8 @@ memhog は元々 `%CPU` 列を出していたが、`top -l 1` は 1 サンプル
 
 import pytest
 
-from memhog import collect, group, parse, report
-from memhog.models import Process, ProcessGroup, PsEntry
+from reshog import collect, group, parse, report
+from reshog.models import Process, ProcessGroup, PsEntry
 
 # 2 サンプル分の top 出力。1 サンプル目の %CPU は 0.0（実機と同じ挙動）。
 TWO_SAMPLES = """Processes: 100 total

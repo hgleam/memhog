@@ -1,7 +1,7 @@
 # CLI オプション
 
-エントリポイント: `memhog.cli:app`（`memhog`）と `memhog.cli:cpu_app`（`cpuhog`）。
-定義は `src/memhog/cli.py`。
+エントリポイント: `reshog.cli:app`（`memhog`）と `reshog.cli:cpu_app`（`cpuhog`）。
+定義は `src/reshog/cli.py`。
 
 ## 2 つのコマンドの作り方（`_build_app`）
 

@@ -1,5 +1,5 @@
 [project]
-name = "memhog"
+name = "reshog"
 version = "0.1.0"
 description = "macOS の実メモリ(物理フットプリント)を食っているプロセスを特定して提示する診断CLI"
 authors = [{ name = "hiroaki", email = "h.note.com.1@gmail.com" }]
@@ -12,11 +12,11 @@ dependencies = [
 
 [project.scripts]
 # 同じ CLI を、既定の並び順だけ変えて 2 つの名前で公開する（定義は cli._build_app に 1 つ）。
-memhog = "memhog.cli:app"
-cpuhog = "memhog.cli:cpu_app"
+memhog = "reshog.cli:app"
+cpuhog = "reshog.cli:cpu_app"
 
 [tool.poetry]
-packages = [{ include = "memhog", from = "src" }]
+packages = [{ include = "reshog", from = "src" }]
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=8.3.0"

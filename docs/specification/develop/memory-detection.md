@@ -1,7 +1,7 @@
 # メモリ検出ロジック（算出仕様）
 
-memhog の中核。「なぜ物理フットプリントでランクするか」と「GPU/Metal 常駐の判定式」を実コード
-（`src/memhog/models.py`・`src/memhog/parse.py`）を根拠に記す。
+reshog の中核。「なぜ物理フットプリントでランクするか」と「GPU/Metal 常駐の判定式」を実コード
+（`src/reshog/models.py`・`src/reshog/parse.py`）を根拠に記す。
 
 ## 物理フットプリント vs RSS
 
