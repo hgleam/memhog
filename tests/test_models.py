@@ -1,6 +1,6 @@
 """models モジュールの単体テスト(GPU/Metal 常駐判定が核心)。"""
 
-from memhog.models import Process
+from reshog.models import Process
 
 
 def _proc(mem_mb: int, rss_mb: int) -> Process:

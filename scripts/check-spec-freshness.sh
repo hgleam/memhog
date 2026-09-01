@@ -3,7 +3,7 @@ set -euo pipefail
 
 # === 監視対象パターン（/init が自動生成。手動追加も可） ===
 WATCH_PATTERNS=(
-  "src/memhog/*"
+  "src/reshog/*"
   "scripts/*.sh"
   ".github/workflows/*"
 )

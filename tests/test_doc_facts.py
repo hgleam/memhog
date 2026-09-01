@@ -28,27 +28,27 @@ SKIP_DOCS = {"docs/devlog.md"}
 FACTS: list[dict] = [
     {
         "label": "表示件数の既定（--count）",
-        "source": ("src/memhog/cli.py", r"count: int = typer\.Option\((\d+),"),
+        "source": ("src/reshog/cli.py", r"count: int = typer\.Option\((\d+),"),
         "doc_pattern": r"既定\s*(\d+)\s*件",
     },
     {
         "label": "GPU 常駐判定の下限（HIDDEN_GPU_MIN_MB）",
-        "source": ("src/memhog/models.py", r"HIDDEN_GPU_MIN_MB = (\d+)"),
+        "source": ("src/reshog/models.py", r"HIDDEN_GPU_MIN_MB = (\d+)"),
         "doc_pattern": r"`HIDDEN_GPU_MIN_MB`\s*\|\s*`(\d+)`",
     },
     {
         "label": "GPU 常駐判定の倍率（HIDDEN_GPU_RSS_RATIO）",
-        "source": ("src/memhog/models.py", r"HIDDEN_GPU_RSS_RATIO = (\d+)"),
+        "source": ("src/reshog/models.py", r"HIDDEN_GPU_RSS_RATIO = (\d+)"),
         "doc_pattern": r"`HIDDEN_GPU_RSS_RATIO`\s*\|\s*`(\d+)`",
     },
     {
         "label": "--group の走査幅の下限（GROUP_SAMPLE_MIN）",
-        "source": ("src/memhog/report.py", r"GROUP_SAMPLE_MIN = (\d+)"),
+        "source": ("src/reshog/report.py", r"GROUP_SAMPLE_MIN = (\d+)"),
         "doc_pattern": r"`GROUP_SAMPLE_MIN = (\d+)`",
     },
     {
         "label": "コマンド表示の最大長（_MAX_CMD）",
-        "source": ("src/memhog/render.py", r"_MAX_CMD = (\d+)"),
+        "source": ("src/reshog/render.py", r"_MAX_CMD = (\d+)"),
         "doc_pattern": r"`_MAX_CMD = (\d+)`",
     },
 ]

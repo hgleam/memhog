@@ -8,7 +8,7 @@ import signal
 
 import pytest
 
-from memhog import collect
+from reshog import collect
 
 
 class TestSendSignal:

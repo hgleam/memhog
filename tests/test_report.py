@@ -2,7 +2,7 @@
 
 import pytest
 
-from memhog import collect, report
+from reshog import collect, report
 
 TOP_SAMPLE = """\
 PhysMem: 63G used (7613M wired, 32G compressor), 217M unused.

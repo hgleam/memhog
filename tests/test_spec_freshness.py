@@ -13,7 +13,7 @@ def test_check_spec_freshness_script_exists() -> None:
 def test_check_spec_freshness_has_watch_patterns() -> None:
     text = (ROOT / "scripts" / "check-spec-freshness.sh").read_text(encoding="utf-8")
     assert "WATCH_PATTERNS=(" in text
-    assert '"src/memhog/*"' in text
+    assert '"src/reshog/*"' in text
 
 
 def test_precommit_hook_exists() -> None:

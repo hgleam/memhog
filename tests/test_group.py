@@ -2,8 +2,8 @@
 
 import pytest
 
-from memhog.group import app_label, group_label, group_processes
-from memhog.models import Process, PsEntry
+from reshog.group import app_label, group_label, group_processes
+from reshog.models import Process, PsEntry
 
 
 def _entry(pid: int, ppid: int, command: str) -> PsEntry:

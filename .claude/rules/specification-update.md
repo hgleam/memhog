@@ -4,7 +4,7 @@
 
 ## 発火条件
 
-- `src/memhog/` 配下のコード変更を伴うコミット（`check-spec-freshness.sh` の `WATCH_PATTERNS` で定義）
+- `src/reshog/` 配下のコード変更を伴うコミット（`check-spec-freshness.sh` の `WATCH_PATTERNS` で定義）
 - `scripts/` 配下のスクリプト追加・変更
 - `.github/workflows/` 配下の CI/CD ワークフロー追加・変更
 - 新しい CLI オプション・出力形式の追加

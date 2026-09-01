@@ -1,4 +1,4 @@
-# memhog — 開発者向け仕様書
+# reshog — 開発者向け仕様書
 
 ## 技術スタック
 
@@ -7,7 +7,7 @@
 - 表示: [rich](https://rich.readthedocs.io/) >= 13.9
 - 依存管理: Poetry（src layout、in-project `.venv`）
 - テスト: pytest / lint: ruff / 型: mypy（`disallow_untyped_defs`）
-- 配布: pipx（`memhog = "memhog.cli:app"`）
+- 配布: pipx（`memhog = "reshog.cli:app"`）
 - CI: GitHub Actions（ruff + mypy + pytest）
 
 外部ランタイム依存なし（標準ライブラリ＋ macOS の外部コマンドのみ）。
