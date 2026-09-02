@@ -21,7 +21,7 @@ import typer
 from rich.console import Console
 
 from . import __version__, collect, render, report
-from .models import Process
+from .models import COMMAND_BY_SORT, Process
 
 # 各コマンドの説明。--sort の既定以外は同じ CLI なので、違いが分かるように書き分ける。
 _MEM_HELP = """macOS の実メモリ(物理フットプリント)を食っているプロセスを特定して提示する。
@@ -261,8 +261,8 @@ def _run_watch(
         console.print("\n終了しました。")
 
 
-app = _build_app("memhog", "mem", _MEM_HELP)
-cpu_app = _build_app("cpuhog", "cpu", _CPU_HELP)
+app = _build_app(COMMAND_BY_SORT["mem"], "mem", _MEM_HELP)
+cpu_app = _build_app(COMMAND_BY_SORT["cpu"], "cpu", _CPU_HELP)
 
 
 if __name__ == "__main__":

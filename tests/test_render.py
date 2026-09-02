@@ -102,3 +102,50 @@ class TestCpuIsVisible:
         assert "合計CPU" in out
         assert "100" in out
 
+
+class TestSuggestedCommandMatchesTheView:
+    """提案するのは「いま見ている並び順を再現するコマンド」。
+
+    CPU 順で見ているのに memhog を勧めると、開き直した画面の並びが変わる。
+    表示は成立し、テストも通り、実行しても動く（並びが違うだけ）ので、
+    指摘されるまで気づけない類のずれ。
+    """
+
+    PROC = Process(pid=42, mem_mb=100, rss_mb=100, cpu=250.0, command="/bin/hog")
+    GROUP = ProcessGroup(
+        label="swarm",
+        members=(Process(pid=42, mem_mb=100, rss_mb=100, cpu=250.0, command="/bin/hog"),),
+    )
+
+    def test_process_footer_follows_the_sort(self) -> None:
+        mem = _render(render_table, [self.PROC], _SYSTEM, _CPU)
+        cpu = _render(render_table, [self.PROC], _SYSTEM, _CPU, "cpu")
+        assert "memhog --kill" in mem and "cpuhog --kill" not in mem
+        assert "cpuhog --kill" in cpu and "memhog --kill" not in cpu
+
+    def test_group_footer_follows_the_sort(self) -> None:
+        mem = _render(render_group_table, [self.GROUP], _SYSTEM, _CPU)
+        cpu = _render(render_group_table, [self.GROUP], _SYSTEM, _CPU, None, "cpu")
+        assert "memhog --app" in mem and "cpuhog --app" not in mem
+        assert "cpuhog --app" in cpu and "memhog --app" not in cpu
+
+
+class TestCommandTableIsTheSingleSource:
+    """並び順↔コマンド名の対応が、entry point と食い違っていないこと。"""
+
+    def test_matches_pyproject_entry_points(self) -> None:
+        import os
+
+        from reshog.models import COMMAND_BY_SORT
+
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        with open(os.path.join(root, "pyproject.toml"), encoding="utf-8") as fh:
+            content = fh.read()
+        for command in COMMAND_BY_SORT.values():
+            assert f'{command} = "reshog.cli:' in content, command
+
+    def test_sort_keys_are_the_accepted_values(self) -> None:
+        from reshog.models import COMMAND_BY_SORT
+
+        assert set(COMMAND_BY_SORT) == {"mem", "cpu"}
+

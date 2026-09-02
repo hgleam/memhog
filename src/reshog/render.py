@@ -8,7 +8,7 @@ from rich.markup import escape
 from rich.table import Table
 from rich.text import Text
 
-from .models import Process, ProcessGroup, SystemCpu, SystemMemory
+from .models import COMMAND_BY_SORT, Process, ProcessGroup, SystemCpu, SystemMemory
 
 _MAX_CMD = 96
 
@@ -145,8 +145,12 @@ def render_table(
         amount = f"{top.cpu:g}%CPU" if by_cpu else format_mb(top.mem_mb)
         console.print(f"  [green]PID {top.pid} / {amount}[/green]")
         console.print(f"  [dim]{escape(_shorten(top.command))}[/dim]")
+        # 提案するのは「いま見ている並び順を再現するコマンド」。invoke されたコマンド名を
+        # そのまま使うと、memhog --sort cpu で見ているのに memhog --kill を勧めることになり、
+        # 開き直した画面の並びが変わる。
         console.print(
-            f"  停止するなら:  [bold]memhog --kill[/bold]  または  [bold]kill {top.pid}[/bold]"
+            f"  停止するなら:  [bold]{COMMAND_BY_SORT[order]} --kill[/bold]"
+            f"  または  [bold]kill {top.pid}[/bold]"
         )
     console.print()
 
@@ -257,7 +261,8 @@ def render_group_table(
         )
         console.print(
             "  内訳を見るなら:  "
-            f"[bold]memhog --app {escape(shlex.quote(top.label))}[/bold]"
+            f"[bold]{COMMAND_BY_SORT[order]} --app "
+            f"{escape(shlex.quote(top.label))}[/bold]"
         )
     console.print()
 
