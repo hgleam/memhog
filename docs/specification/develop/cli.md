@@ -18,6 +18,10 @@ cpu_app = _build_app("cpuhog", "cpu", _CPU_HELP)
   `--help` の差として静かに残る。ファクトリなら構造的に同じものしか作れない。
 - **実行時に argv を書き換えて既定を変える方式は採らない。** `cpuhog --help` が `--sort` の
   既定を `mem` と表示してしまい、ヘルプが嘘をつく。
+- **並び順とコマンド名の対応は `models.COMMAND_BY_SORT` が唯一の正本**
+  （`{"mem": "memhog", "cpu": "cpuhog"}`）。pyproject の entry point・`_build_app` の
+  app 生成・`render` の提案文がこれを参照する。3 箇所に別々に書くと、コマンドを増やしたとき
+  提案文だけ古いまま残る。entry point との一致は `tests/test_render.py` で固定する。
 - `--version` は `_make_version_callback(program)` で自分のコマンド名を名乗る。
 - `--help` の本文は `@cli.command(help=help_text)` に渡す（関数の docstring は実装の説明用）。
   2 つの入口があっても説明が同じでは、利用者が違いを判断できない。
